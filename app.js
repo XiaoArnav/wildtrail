@@ -759,10 +759,44 @@ $('import-pmtiles-input').onchange = async e => {
 // ---------- Consent & Download Modal ----------
 let downloadAbortController = null;
 
-function openConsentModal() {
+// Bounding box overlap computation ([minLon, minLat, maxLon, maxLat])
+function computeBoxOverlap(a, b) {
+  const intMinLon = Math.max(a[0], b[0]);
+  const intMinLat = Math.max(a[1], b[1]);
+  const intMaxLon = Math.min(a[2], b[2]);
+  const intMaxLat = Math.min(a[3], b[3]);
+
+  if (intMaxLon <= intMinLon || intMaxLat <= intMinLat) return { pctA: 0, pctB: 0 };
+
+  const intArea = (intMaxLon - intMinLon) * (intMaxLat - intMinLat);
+  const aArea = (a[2] - a[0]) * (a[3] - a[1]);
+  const bArea = (b[2] - b[0]) * (b[3] - b[1]);
+
+  return {
+    pctA: aArea > 0 ? (intArea / aArea) : 0,
+    pctB: bArea > 0 ? (intArea / bArea) : 0
+  };
+}
+
+async function findOverlappingRegions(targetBbox) {
+  const regions = await getAll('regions');
+  if (!regions || !regions.length) return [];
+  const superseded = [];
+
+  for (const reg of regions) {
+    const { pctA } = computeBoxOverlap(reg.bbox, targetBbox);
+    // If targetBbox covers 60% or more of an existing region's area, it supersedes it
+    if (pctA >= 0.60) {
+      superseded.push(reg);
+    }
+  }
+  return superseded;
+}
+
+async function openConsentModal() {
   show('maps-manager-modal', false);
   show('map-consent-modal', true);
-  updateDownloadEstimate();
+  await updateDownloadEstimate();
 }
 
 $('new-dl-btn').onclick = openConsentModal;
@@ -772,10 +806,34 @@ $('consent-close-btn').onclick = () => {
 };
 $('skip-map-btn').onclick = () => show('map-consent-modal', false);
 
-$('consent-radius').onchange = updateDownloadEstimate;
-function updateDownloadEstimate() {
+$('consent-radius').onchange = () => updateDownloadEstimate();
+async function updateDownloadEstimate() {
   const rad = $('consent-radius').value;
   $('dl-estimate').textContent = rad === '15' ? 'Estimated download: ~12 MB' : 'Estimated download: ~18 MB';
+
+  const pos = lastPos || await getPosition();
+  const hintEl = $('dl-upgrade-hint');
+  if (!pos) {
+    hintEl.textContent = '';
+    show('dl-upgrade-hint', false);
+    return;
+  }
+
+  const radiusKm = Number(rad);
+  const dLat = radiusKm / 111;
+  const dLon = radiusKm / (111 * Math.cos(pos.lat * Math.PI / 180));
+  const newBbox = [pos.lon - dLon, pos.lat - dLat, pos.lon + dLon, pos.lat + dLat];
+
+  const overlapping = await findOverlappingRegions(newBbox);
+  if (overlapping.length > 0) {
+    const oldNames = overlapping.map(r => r.name).join(', ');
+    const oldMb = overlapping.reduce((acc, r) => acc + (r.sizeBytes || 0), 0) / 1024 / 1024;
+    hintEl.textContent = `♻️ Smart Upgrade: Replaces "${oldNames}" (~${oldMb.toFixed(1)} MB). Saves storage by automatically purging duplicate map tiles!`;
+    show('dl-upgrade-hint', true);
+  } else {
+    hintEl.textContent = '';
+    show('dl-upgrade-hint', false);
+  }
 }
 
 $('confirm-dl-btn').onclick = async () => {
@@ -829,12 +887,24 @@ $('confirm-dl-btn').onclick = async () => {
       blob: blob
     };
 
+    // Remove superseded overlapping regions to save storage on device
+    const superseded = await findOverlappingRegions(bbox);
+    for (const oldReg of superseded) {
+      await delOne('regions', oldReg.id);
+    }
+
     await putAll('regions', region);
     show('map-consent-modal', false);
     resetDownloadModal();
     await checkActiveRegionMap();
     renderMapAndStats();
-    alert('Offline map successfully saved to this device! Streets will now render beneath your fog of war.');
+
+    if (superseded.length > 0) {
+      const oldNames = superseded.map(r => r.name).join(', ');
+      alert(`Map expanded to ${radiusKm} km! Replaced "${oldNames}" to save storage on your device.`);
+    } else {
+      alert('Offline map successfully saved to this device! Streets will now render beneath your fog of war.');
+    }
   } catch (err) {
     if (err.name === 'QuotaExceededError') {
       alert('Device storage full! Please delete existing map regions to free up space.');
@@ -857,6 +927,8 @@ function resetDownloadModal() {
   show('skip-map-btn', true);
   show('cancel-dl-btn', false);
   $('dl-progress-bar').style.width = '0%';
+  $('dl-upgrade-hint').textContent = '';
+  show('dl-upgrade-hint', false);
 }
 
 // ---------- Export and erase (you own your data) ----------
