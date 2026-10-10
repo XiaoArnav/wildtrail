@@ -1,10 +1,25 @@
 // Caches the app shell and the AI library so WildTrail works offline.
 // (The model files themselves are cached by transformers.js in the browser's Cache Storage.)
-const CACHE = 'wildtrail-v7';
+const CACHE = 'wildtrail-v8';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg'];
+const EXTERNAL_ASSETS = [
+  'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css',
+  'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js',
+  'https://cdn.jsdelivr.net/npm/pmtiles@3.0.7/dist/pmtiles.js'
+];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE).then(async c => {
+      await c.addAll(SHELL);
+      for (const asset of EXTERNAL_ASSETS) {
+        try {
+          const res = await fetch(asset);
+          if (res.ok) await c.put(asset, res);
+        } catch (_) {}
+      }
+    }).then(() => self.skipWaiting())
+  );
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))

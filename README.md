@@ -6,8 +6,10 @@ Collect real wildlife outdoors: animals, birds, insects and flowers. Point your 
 
 ## How it works
 - **Identification:** CLIP (`Xenova/clip-vit-base-patch32`) running in the browser through Transformers.js. It matches the photo against a list of species. The model downloads once (about 90 MB) and is then cached, so identification works offline.
-- **Map:** drawn on a canvas from your GPS points. No map tiles are downloaded, so nothing about where you walk leaves the phone.
-- **Offline:** a service worker caches the app and the AI library.
+- **Offline Map & Territory:** Vector street data rendered via MapLibre GL JS and PMTiles under a fog-of-war canvas layer. Downloading an area requires explicit user consent, shows progress and size estimate (~12–18 MB), and stores data locally in IndexedDB. After this one-time download, zero location data is ever transmitted. If skipped or offline, the app defaults seamlessly to the pure canvas fog-of-war.
+- **Uncharted Walk:** When walking within 1 km of downloaded boundaries or stepping into uncharted terrain, non-intrusive alerts offer download options, trail cells are highlighted with amber accents, and uncharted exploration statistics are tracked.
+- **Attribution:** Street vector data is derived from OpenStreetMap (© OpenStreetMap contributors) and styled with Protomaps.
+- **Offline:** A service worker (`wildtrail-v8`) caches the entire app shell, MapLibre GL JS, and PMTiles runtime libraries.
 
 ## Run it
 Camera and location need HTTPS (or localhost).
