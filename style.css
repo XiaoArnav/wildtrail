@@ -737,6 +737,20 @@ video {
   aspect-ratio: 1;
 }
 
+.map-wrapper:fullscreen,
+.map-wrapper.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  z-index: 99999 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
 .maplibre-base {
   position: absolute;
   inset: 0;

@@ -588,6 +588,61 @@ $('zoom-out').onclick = () => {
   renderMapAndStats();
 };
 
+// Fullscreen map toggle
+function toggleMapFullscreen() {
+  const wrapper = document.querySelector('.map-wrapper');
+  if (!wrapper) return;
+  const isFs = Boolean(document.fullscreenElement) || wrapper.classList.contains('is-fullscreen');
+
+  if (!isFs) {
+    if (wrapper.requestFullscreen) {
+      wrapper.requestFullscreen().catch(() => {
+        wrapper.classList.add('is-fullscreen');
+        updateFullscreenUI(true);
+      });
+    } else {
+      wrapper.classList.add('is-fullscreen');
+      updateFullscreenUI(true);
+    }
+  } else {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      wrapper.classList.remove('is-fullscreen');
+      updateFullscreenUI(false);
+    }
+  }
+}
+
+function updateFullscreenUI(inFs) {
+  const btn = $('map-fullscreen-btn');
+  if (btn) {
+    btn.textContent = inFs ? '✕' : '⛶';
+    btn.title = inFs ? 'Exit Fullscreen' : 'Toggle Fullscreen';
+  }
+  setTimeout(() => {
+    if (mapInstance) mapInstance.resize();
+    renderMapAndStats();
+  }, 80);
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const inFs = Boolean(document.fullscreenElement);
+  updateFullscreenUI(inFs);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const wrapper = document.querySelector('.map-wrapper');
+    if (wrapper && wrapper.classList.contains('is-fullscreen')) {
+      wrapper.classList.remove('is-fullscreen');
+      updateFullscreenUI(false);
+    }
+  }
+});
+
+$('map-fullscreen-btn').onclick = toggleMapFullscreen;
+
 // ---------- Feature A: Offline Vector Map & PMTiles Loader ----------
 let maplibreGL = null;
 let pmtilesLib = null;
