@@ -412,7 +412,7 @@ async function renderMapAndStats() {
     const s = toScreen({ x: i * CELL, y: j * CELL });
     g.fillRect(s.x, s.y - CELL * px, CELL * px, CELL * px);
   });
-  g.strokeStyle = '#4ade80'; g.lineWidth = 2.5; g.beginPath();
+  g.strokeStyle = '#10b981'; g.lineWidth = 2.5; g.beginPath();
   track.forEach((pt, i) => { const s = toScreen(project(pt, origin)); i ? g.lineTo(s.x, s.y) : g.moveTo(s.x, s.y); });
   g.stroke();
   finds.filter(f => f.lat != null).forEach(f => {
