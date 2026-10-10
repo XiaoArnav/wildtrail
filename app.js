@@ -437,6 +437,22 @@ $('wipe-btn').onclick = async () => {
   location.reload();
 };
 
+// ---------- Cinematic Splash Intro ----------
+function dismissIntro() {
+  const intro = $('intro-screen');
+  if (!intro || intro.classList.contains('fade-out')) return;
+  intro.classList.add('fade-out');
+  setTimeout(() => {
+    intro.remove();
+  }, 700);
+}
+
+const introEl = $('intro-screen');
+if (introEl) {
+  introEl.onclick = dismissIntro;
+  setTimeout(dismissIntro, 2400);
+}
+
 // ---------- Offline support ----------
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
