@@ -4,7 +4,7 @@
   "description": "Collect real wildlife outdoors. Offline, private, open source.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0f1f16",
-  "theme_color": "#14281d",
+  "background_color": "#070e0a",
+  "theme_color": "#070e0a",
   "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }

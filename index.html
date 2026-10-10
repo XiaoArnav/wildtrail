@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#14281d">
+<meta name="theme-color" content="#070e0a">
 <title>WildTrail</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
@@ -11,88 +11,204 @@
 </head>
 <body>
 <header>
-  <h1>WildTrail</h1>
-  <span id="who"></span>
+  <div class="brand">
+    <span class="brand-icon">
+      <svg viewBox="0 0 512 512" width="22" height="22">
+        <path d="M 256,96 C 352,160 384,260 366,350 C 350,420 290,448 256,448 C 222,448 162,420 146,350 C 128,260 160,160 256,96 Z" fill="#4ade80" />
+        <rect x="246" y="150" width="20" height="250" rx="10" fill="#070e0a" />
+        <path d="M 256,260 L 200,204 M 256,310 L 312,254" stroke="#070e0a" stroke-width="20" stroke-linecap="round" />
+      </svg>
+    </span>
+    <h1>WildTrail</h1>
+  </div>
+  <div class="header-right">
+    <span id="who" class="trainer-chip"></span>
+  </div>
 </header>
 
 <main>
   <!-- Welcome / local profile -->
   <section id="view-welcome" class="view">
-    <h2>Touch grass. Collect the real thing.</h2>
-    <p>Find real animals, birds, insects and flowers outside. Everything runs on your phone: no account, no server, no tracking.</p>
-    <label>Choose a trainer name (stays on this device)
-      <input id="name-input" maxlength="24" placeholder="e.g. Arnav">
-    </label>
-    <button id="start-btn" class="primary">Start exploring</button>
+    <div class="welcome-hero">
+      <div class="welcome-icon-wrap">
+        <svg viewBox="0 0 512 512" width="80" height="80">
+          <path d="M 256,96 C 352,160 384,260 366,350 C 350,420 290,448 256,448 C 222,448 162,420 146,350 C 128,260 160,160 256,96 Z" fill="#4ade80" />
+          <rect x="246" y="150" width="20" height="250" rx="10" fill="#070e0a" />
+          <path d="M 256,260 L 200,204 M 256,310 L 312,254" stroke="#070e0a" stroke-width="20" stroke-linecap="round" />
+        </svg>
+      </div>
+      <h2>Touch grass.<br>Collect real wildlife.</h2>
+      <p class="welcome-lead">Discover real birds, animals, insects & flowers outdoors. Powered by open-source on-device AI.</p>
+      
+      <div class="feature-pills">
+        <span class="pill">⚡ On-Device AI</span>
+        <span class="pill">🔒 100% Private</span>
+        <span class="pill">📡 Works Offline</span>
+      </div>
+    </div>
+
+    <div class="welcome-card card">
+      <label for="name-input">Explorer / Trainer Name
+        <input id="name-input" maxlength="24" placeholder="e.g. Arnav" autocomplete="off">
+      </label>
+      <button id="start-btn" class="primary full-width">Start Exploring 🌿</button>
+    </div>
   </section>
 
   <!-- Capture -->
   <section id="view-capture" class="view">
     <div class="camera">
       <video id="video" playsinline muted></video>
+      <div class="viewfinder-overlay">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div id="lens-status" class="lens-status">○ Standby</div>
+      </div>
       <div id="cam-msg">Camera is off</div>
     </div>
-    <div class="row">
-      <button id="cam-btn">Start camera</button>
-      <button id="snap-btn" class="primary" disabled>Capture</button>
-    </div>
-    <p id="model-status" class="hint">The identification model downloads once (about 90 MB), then works offline.</p>
 
-    <div id="result" class="card hidden">
-      <img id="result-img" alt="Captured photo">
-      <div id="guesses"></div>
-      <label>Name
-        <input id="name-field" placeholder="What is it?">
-      </label>
-      <label>Type
-        <select id="type-field">
-          <option value="animal">Animal</option>
-          <option value="bird">Bird</option>
-          <option value="insect">Insect</option>
-          <option value="flower">Flower / plant</option>
-        </select>
-      </label>
-      <div class="row">
-        <button id="discard-btn">Discard</button>
-        <button id="save-btn" class="primary">Add to collection</button>
+    <div class="controls-bar">
+      <button id="cam-btn" class="glass-btn">
+        <span class="btn-icon">📷</span>
+        <span id="cam-btn-text">Start camera</span>
+      </button>
+      <button id="snap-btn" class="shutter-btn" disabled title="Capture find">
+        <span class="shutter-inner"></span>
+      </button>
+    </div>
+
+    <div class="status-card">
+      <div class="status-indicator"></div>
+      <p id="model-status" class="hint">The AI model downloads once (~90 MB) then works fully offline on this device.</p>
+    </div>
+
+    <!-- Result card -->
+    <div id="result" class="card result-card hidden">
+      <div class="result-header">
+        <h3>Species Identified</h3>
+        <span class="badge-open-model">Open CLIP</span>
+      </div>
+      <div class="result-media">
+        <img id="result-img" alt="Captured photo">
+      </div>
+      <div class="guesses-section">
+        <span class="field-label">AI Guesses (tap to choose):</span>
+        <div id="guesses"></div>
+      </div>
+      <div class="edit-fields">
+        <label>Confirmed Name
+          <input id="name-field" placeholder="What did you spot?">
+        </label>
+        <label>Category
+          <select id="type-field">
+            <option value="bird">🐦 Bird</option>
+            <option value="animal">🐾 Animal</option>
+            <option value="insect">🐛 Insect</option>
+            <option value="flower">🌸 Flower / Plant</option>
+          </select>
+        </label>
+      </div>
+      <div class="row modal-actions">
+        <button id="discard-btn" class="secondary">Discard</button>
+        <button id="save-btn" class="primary">Add to Collection ✨</button>
       </div>
     </div>
   </section>
 
   <!-- Collection -->
   <section id="view-collection" class="view">
+    <div class="collection-header">
+      <h2>Field Journal</h2>
+      <div id="collection-stats" class="collection-count-badge">0 finds</div>
+    </div>
     <div class="tabs" id="filter-tabs">
-      <button data-f="all" class="on">All</button>
-      <button data-f="animal">Animals</button>
-      <button data-f="bird">Birds</button>
-      <button data-f="insect">Insects</button>
-      <button data-f="flower">Flowers</button>
+      <button data-f="all" class="on">✨ All</button>
+      <button data-f="bird">🐦 Birds</button>
+      <button data-f="animal">🐾 Animals</button>
+      <button data-f="insect">🐛 Insects</button>
+      <button data-f="flower">🌸 Plants</button>
     </div>
     <div id="grid" class="grid"></div>
-    <p id="empty-msg" class="hint hidden">Nothing here yet. Go find something!</p>
+    <div id="empty-msg" class="empty-state hidden">
+      <div class="empty-icon">🌿</div>
+      <p>No finds in this category yet.<br>Head outside with the Scanner to log your first discovery!</p>
+    </div>
   </section>
 
   <!-- Map -->
   <section id="view-map" class="view">
-    <canvas id="map" width="360" height="360"></canvas>
-    <div class="row">
-      <button id="track-btn">Start tracking</button>
-      <button id="zoom-in">+</button>
-      <button id="zoom-out">&minus;</button>
+    <div class="map-wrapper">
+      <canvas id="map" width="360" height="360"></canvas>
+      <div class="map-overlay-controls">
+        <button id="zoom-in" class="fab-btn" title="Zoom in">+</button>
+        <button id="zoom-out" class="fab-btn" title="Zoom out">&minus;</button>
+      </div>
+      <div id="gps-status" class="gps-chip">📍 GPS: Standby</div>
     </div>
+
+    <div class="row map-actions">
+      <button id="track-btn" class="primary full-width">Start Tracking Trail</button>
+    </div>
+
     <div class="stats" id="stats"></div>
-    <p class="hint">Dark squares are unexplored. Walk to light up the ground you cover. The map is drawn on your device; no map tiles are downloaded.</p>
-    <div class="row">
-      <button id="export-btn">Export my data</button>
-      <button id="wipe-btn" class="danger">Erase everything</button>
+
+    <div class="hint-card">
+      <p class="hint">Dark squares represent unexplored territory. Walk outdoors to reveal fog-of-war. Rendered 100% on-device — no map server ever tracks your location.</p>
+    </div>
+
+    <div class="row data-actions">
+      <button id="export-btn" class="glass-btn">📥 Export Data (JSON)</button>
+      <button id="wipe-btn" class="danger-btn">🗑️ Erase Data</button>
     </div>
   </section>
 </main>
 
+<!-- Detail Modal for inspecting collection items -->
+<div id="detail-modal" class="modal-backdrop hidden">
+  <div class="modal-sheet">
+    <button id="modal-close-btn" class="modal-close" aria-label="Close modal">&times;</button>
+    <div class="modal-image-wrap">
+      <img id="modal-img" src="" alt="Find photo">
+      <span id="modal-type-badge" class="modal-badge"></span>
+    </div>
+    <div class="modal-content">
+      <h3 id="modal-name"></h3>
+      <div class="modal-meta-grid">
+        <div class="meta-item">
+          <span class="meta-label">📅 Logged</span>
+          <span id="modal-date" class="meta-value"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">📍 GPS Coordinates</span>
+          <span id="modal-coords" class="meta-value"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">🤖 AI Prediction</span>
+          <span id="modal-guessed" class="meta-value"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-delete-btn" class="danger-btn full-width">Delete Find</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <nav id="nav">
-  <button data-v="capture" class="on">Capture</button>
-  <button data-v="collection">Collection</button>
-  <button data-v="map">Map</button>
+  <button data-v="capture" class="nav-item on">
+    <span class="nav-icon">📷</span>
+    <span class="nav-label">Scanner</span>
+  </button>
+  <button data-v="collection" class="nav-item">
+    <span class="nav-icon">📖</span>
+    <span class="nav-label">Field Guide</span>
+  </button>
+  <button data-v="map" class="nav-item">
+    <span class="nav-icon">🗺️</span>
+    <span class="nav-label">Territory</span>
+  </button>
 </nav>
 
 <script type="module" src="app.js"></script>

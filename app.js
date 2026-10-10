@@ -36,6 +36,7 @@ const NONE_LABEL = 'a person, a room, a building or an everyday object';
 
 const typeOf = Object.fromEntries(SPECIES);
 const LABELS = [...SPECIES.map(s => s[0]), NONE_LABEL];
+const ICONS = { bird: '🐦', animal: '🐾', insect: '🐛', flower: '🌸' };
 
 // ---------- Tiny IndexedDB wrapper ----------
 const DB_NAME = 'wildtrail';
@@ -84,17 +85,24 @@ function showView(name) {
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => showView(b.dataset.v));
 
 // ---------- Profile (local only, no login server) ----------
+async function updateTrainerChip() {
+  const name = await metaGet('name');
+  if (!name) return;
+  const allFinds = await getAll('finds');
+  $('who').innerHTML = `<span>🌿</span> ${name} · ${allFinds.length}`;
+}
+
 async function boot() {
   const name = await metaGet('name');
   if (!name) { showView('welcome'); return; }
-  $('who').textContent = name;
+  await updateTrainerChip();
   showView('capture');
   loadTrack();
 }
 $('start-btn').onclick = async () => {
   const name = $('name-input').value.trim() || 'Explorer';
   await metaSet('name', name);
-  $('who').textContent = name;
+  await updateTrainerChip();
   showView('capture');
   loadTrack();
 };
@@ -114,7 +122,9 @@ $('cam-btn').onclick = async () => {
     await $('video').play();
     show('cam-msg', false);
     $('snap-btn').disabled = false;
-    $('cam-btn').textContent = 'Stop camera';
+    $('cam-btn-text').textContent = 'Stop camera';
+    $('lens-status').textContent = '● Live Lens';
+    $('lens-status').classList.add('active');
     warmModel(); // start loading the model while the user aims the camera
   } catch (e) {
     $('cam-msg').textContent = 'Camera unavailable: ' + (e.message || e.name);
@@ -127,7 +137,9 @@ function stopCamera() {
   show('cam-msg', true);
   $('cam-msg').textContent = 'Camera is off';
   $('snap-btn').disabled = true;
-  $('cam-btn').textContent = 'Start camera';
+  $('cam-btn-text').textContent = 'Start camera';
+  $('lens-status').textContent = '○ Standby';
+  $('lens-status').classList.remove('active');
 }
 
 // ---------- On-device identification (open model, runs in the browser) ----------
@@ -158,6 +170,7 @@ let pending = null; // the capture waiting for confirmation
 $('snap-btn').onclick = async () => {
   const v = $('video');
   if (!v.videoWidth) return;
+  if ('vibrate' in navigator) navigator.vibrate(40);
   const c = document.createElement('canvas');
   const scale = 480 / Math.max(v.videoWidth, v.videoHeight);
   c.width = Math.round(v.videoWidth * scale);
@@ -195,7 +208,9 @@ function renderGuesses() {
   box.textContent = '';
   pending.guesses.forEach(g => {
     const b = document.createElement('button');
-    b.textContent = `${g.label} (${Math.round(g.score * 100)}%)`;
+    b.className = 'guess-pill';
+    const pct = Math.round(g.score * 100);
+    b.innerHTML = `<span>${g.label}</span><span class="score-badge">${pct}%</span>`;
     b.onclick = () => pickGuess(g);
     b.dataset.label = g.label;
     box.appendChild(b);
@@ -211,6 +226,7 @@ $('save-btn').onclick = async () => {
   if (!pending) return;
   const name = $('name-field').value.trim();
   if (!name) { $('name-field').focus(); return; }
+  if ('vibrate' in navigator) navigator.vibrate([40, 50, 80]);
   const pos = lastPos || await getPosition();
   await putAll('finds', {
     name, type: $('type-field').value, photo: pending.photo, time: Date.now(),
@@ -219,6 +235,7 @@ $('save-btn').onclick = async () => {
   });
   pending = null;
   show('result', false);
+  await updateTrainerChip();
   showView('collection');
 };
 
@@ -230,24 +247,64 @@ document.querySelectorAll('#filter-tabs button').forEach(b => b.onclick = () => 
   renderCollection();
 });
 async function renderCollection() {
-  const finds = (await getAll('finds')).reverse().filter(f => filter === 'all' || f.type === filter);
+  const allFinds = (await getAll('finds')).reverse();
+  const finds = allFinds.filter(f => filter === 'all' || f.type === filter);
+  $('collection-stats').textContent = `${allFinds.length} ${allFinds.length === 1 ? 'find' : 'finds'}`;
   const grid = $('grid');
   grid.textContent = '';
   show('empty-msg', finds.length === 0);
   finds.forEach(f => {
     const t = document.createElement('div');
     t.className = 'tile';
+    t.onclick = () => openDetailModal(f);
+
+    const chip = document.createElement('span');
+    chip.className = 'tile-chip';
+    chip.textContent = `${ICONS[f.type] || '🌿'} ${f.type}`;
+
     const img = document.createElement('img');
-    img.src = f.photo; img.alt = f.name;
-    const info = document.createElement('div');
-    const n = document.createElement('b'); n.textContent = f.name;
+    img.src = f.photo;
+    img.alt = f.name;
+    img.loading = 'lazy';
+
+    const scrim = document.createElement('div');
+    scrim.className = 'tile-scrim';
+    const n = document.createElement('b');
+    n.textContent = f.name;
     const s = document.createElement('small');
-    s.textContent = f.type + ' · ' + new Date(f.time).toLocaleDateString();
-    info.append(n, s);
-    t.append(img, info);
+    s.textContent = new Date(f.time).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    scrim.append(n, s);
+
+    t.append(chip, img, scrim);
     grid.appendChild(t);
   });
 }
+
+function openDetailModal(find) {
+  $('modal-img').src = find.photo;
+  $('modal-name').textContent = find.name;
+  $('modal-type-badge').textContent = `${ICONS[find.type] || '🌿'} ${find.type.toUpperCase()}`;
+  $('modal-date').textContent = new Date(find.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  $('modal-coords').textContent = (find.lat != null && find.lon != null)
+    ? `${find.lat.toFixed(4)}°, ${find.lon.toFixed(4)}°`
+    : 'No GPS logged';
+  $('modal-guessed').textContent = find.guessed ? `AI: ${find.guessed}` : 'Manual entry';
+
+  $('modal-delete-btn').onclick = async () => {
+    if (confirm(`Remove "${find.name}" from your journal?`)) {
+      await tx('finds', 'readwrite', o => o.delete(find.id));
+      show('detail-modal', false);
+      await updateTrainerChip();
+      renderCollection();
+    }
+  };
+  show('detail-modal', true);
+}
+
+$('modal-close-btn').onclick = () => show('detail-modal', false);
+$('detail-modal').onclick = e => {
+  if (e.target === $('detail-modal')) show('detail-modal', false);
+};
 
 // ---------- Location, distance and map ----------
 let lastPos = null;
@@ -284,13 +341,21 @@ $('track-btn').onclick = () => {
   if (watchId !== null) {
     navigator.geolocation.clearWatch(watchId);
     watchId = null;
-    $('track-btn').textContent = 'Start tracking';
+    $('track-btn').textContent = 'Start Tracking Trail';
+    $('track-btn').classList.remove('danger-btn');
+    $('track-btn').classList.add('primary');
+    $('gps-status').textContent = '📍 GPS: Standby';
+    $('gps-status').classList.remove('active');
     return;
   }
   if (!navigator.geolocation) { alert('Location is not available on this device.'); return; }
   watchId = navigator.geolocation.watchPosition(onPos, e => alert('Location error: ' + e.message),
     { enableHighAccuracy: true, maximumAge: 2000 });
-  $('track-btn').textContent = 'Stop tracking';
+  $('track-btn').textContent = 'Stop Tracking Trail';
+  $('track-btn').classList.remove('primary');
+  $('track-btn').classList.add('danger-btn');
+  $('gps-status').textContent = '📍 GPS: Tracking active';
+  $('gps-status').classList.add('active');
 };
 async function onPos(p) {
   if (p.coords.accuracy > 50) return; // too fuzzy to trust
@@ -323,8 +388,8 @@ async function renderMapAndStats() {
   $('stats').innerHTML = '';
   [[(totalMeters / 1000).toFixed(2) + ' km', 'distance walked'],
    [cells.size, 'squares explored'],
-   [finds.length, 'finds'],
-   [species.size, 'different species']].forEach(([v, l]) => {
+   [finds.length, 'total finds'],
+   [species.size, 'unique species']].forEach(([v, l]) => {
     const d = document.createElement('div'); d.className = 'stat';
     const b = document.createElement('b'); b.textContent = v;
     const s = document.createElement('span'); s.textContent = l;
@@ -332,29 +397,29 @@ async function renderMapAndStats() {
   });
 
   const cv = $('map'), g = cv.getContext('2d');
-  g.fillStyle = '#08120c'; g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = '#06110a'; g.fillRect(0, 0, cv.width, cv.height);
   if (!track.length) {
-    g.fillStyle = '#98b8a2'; g.font = '14px system-ui'; g.textAlign = 'center';
+    g.fillStyle = '#8ea896'; g.font = '14px system-ui'; g.textAlign = 'center';
     g.fillText('Start tracking and walk to reveal the map', cv.width / 2, cv.height / 2);
     return;
   }
   const px = 2 * zoom; // pixels per metre
   const cx = cv.width / 2, cy = cv.height / 2;
   const toScreen = m => ({ x: cx + m.x * px, y: cy - m.y * px });
-  g.fillStyle = '#2f7a45';
+  g.fillStyle = '#1e5e33';
   cells.forEach(key => {
     const [i, j] = key.split(',').map(Number);
     const s = toScreen({ x: i * CELL, y: j * CELL });
     g.fillRect(s.x, s.y - CELL * px, CELL * px, CELL * px);
   });
-  g.strokeStyle = '#7bd88f'; g.lineWidth = 2; g.beginPath();
+  g.strokeStyle = '#4ade80'; g.lineWidth = 2.5; g.beginPath();
   track.forEach((pt, i) => { const s = toScreen(project(pt, origin)); i ? g.lineTo(s.x, s.y) : g.moveTo(s.x, s.y); });
   g.stroke();
   finds.filter(f => f.lat != null).forEach(f => {
     const s = toScreen(project(f, origin));
-    g.fillStyle = '#ffd54f'; g.beginPath(); g.arc(s.x, s.y, 5, 0, 7); g.fill();
+    g.fillStyle = '#fbbf24'; g.beginPath(); g.arc(s.x, s.y, 6, 0, 7); g.fill();
   });
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, cy, 5, 0, 7); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx, cy, 6, 0, 7); g.fill();
 }
 $('zoom-in').onclick = () => { zoom = Math.min(zoom * 1.5, 8); renderMapAndStats(); };
 $('zoom-out').onclick = () => { zoom = Math.max(zoom / 1.5, 0.15); renderMapAndStats(); };
