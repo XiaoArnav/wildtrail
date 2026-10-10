@@ -96,11 +96,17 @@ function showView(name) {
   $('nav').classList.toggle('hidden', name === 'welcome');
   if (name === 'collection') renderCollection();
   if (name === 'map') {
+    if (mapInstance) mapInstance.resize();
     renderMapAndStats();
     checkActiveRegionMap();
   }
 }
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => showView(b.dataset.v));
+
+window.addEventListener('resize', () => {
+  if (mapInstance) mapInstance.resize();
+  if ($('view-map').classList.contains('active')) renderMapAndStats();
+});
 
 // ---------- Profile (local only, no login server) ----------
 async function updateTrainerChip() {
@@ -512,6 +518,16 @@ async function renderMapAndStats() {
   });
 
   const cv = $('map'), g = cv.getContext('2d');
+  const rect = cv.getBoundingClientRect();
+  if (rect.width && rect.height) {
+    const rw = Math.round(rect.width);
+    const rh = Math.round(rect.height);
+    if (cv.width !== rw || cv.height !== rh) {
+      cv.width = rw;
+      cv.height = rh;
+    }
+  }
+
   // Clear canvas (leaves map underneath visible if maplibre is active)
   if (mapInstance) {
     g.clearRect(0, 0, cv.width, cv.height);

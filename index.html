@@ -21,18 +21,20 @@
 </div>
 
 <header>
-  <div class="brand">
-    <span class="brand-icon">
-      <svg viewBox="0 0 512 512" width="22" height="22">
-        <path d="M 256,96 C 352,160 384,260 366,350 C 350,420 290,448 256,448 C 222,448 162,420 146,350 C 128,260 160,160 256,96 Z" fill="#4ade80" />
-        <rect x="246" y="150" width="20" height="250" rx="10" fill="#070e0a" />
-        <path d="M 256,260 L 200,204 M 256,310 L 312,254" stroke="#070e0a" stroke-width="20" stroke-linecap="round" />
-      </svg>
-    </span>
-    <h1>WildTrail</h1>
-  </div>
-  <div class="header-right">
-    <span id="who" class="trainer-chip"></span>
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-icon">
+        <svg viewBox="0 0 512 512" width="22" height="22">
+          <path d="M 256,96 C 352,160 384,260 366,350 C 350,420 290,448 256,448 C 222,448 162,420 146,350 C 128,260 160,160 256,96 Z" fill="#4ade80" />
+          <rect x="246" y="150" width="20" height="250" rx="10" fill="#070e0a" />
+          <path d="M 256,260 L 200,204 M 256,310 L 312,254" stroke="#070e0a" stroke-width="20" stroke-linecap="round" />
+        </svg>
+      </span>
+      <h1>WildTrail</h1>
+    </div>
+    <div class="header-right">
+      <span id="who" class="trainer-chip"></span>
+    </div>
   </div>
 </header>
 
@@ -67,62 +69,68 @@
 
   <!-- Capture -->
   <section id="view-capture" class="view">
-    <div class="camera">
-      <video id="video" playsinline muted></video>
-      <div class="viewfinder-overlay">
-        <div class="corner tl"></div>
-        <div class="corner tr"></div>
-        <div class="corner bl"></div>
-        <div class="corner br"></div>
-        <div id="lens-status" class="lens-status">○ Standby</div>
-      </div>
-      <div id="cam-msg">Camera is off</div>
-    </div>
+    <div class="capture-layout-grid">
+      <div class="camera-col">
+        <div class="camera">
+          <video id="video" playsinline muted></video>
+          <div class="viewfinder-overlay">
+            <div class="corner tl"></div>
+            <div class="corner tr"></div>
+            <div class="corner bl"></div>
+            <div class="corner br"></div>
+            <div id="lens-status" class="lens-status">○ Standby</div>
+          </div>
+          <div id="cam-msg">Camera is off</div>
+        </div>
 
-    <div class="controls-bar">
-      <button id="cam-btn" class="glass-btn">
-        <span class="btn-icon">📷</span>
-        <span id="cam-btn-text">Start camera</span>
-      </button>
-      <button id="snap-btn" class="shutter-btn" disabled title="Capture find">
-        <span class="shutter-inner"></span>
-      </button>
-    </div>
+        <div class="controls-bar">
+          <button id="cam-btn" class="glass-btn">
+            <span class="btn-icon">📷</span>
+            <span id="cam-btn-text">Start camera</span>
+          </button>
+          <button id="snap-btn" class="shutter-btn" disabled title="Capture find">
+            <span class="shutter-inner"></span>
+          </button>
+        </div>
+      </div>
 
-    <div class="status-card">
-      <div class="status-indicator"></div>
-      <p id="model-status" class="hint">The AI model downloads once (~90 MB) then works fully offline on this device.</p>
-    </div>
+      <div class="scanner-side-col">
+        <div class="status-card">
+          <div class="status-indicator"></div>
+          <p id="model-status" class="hint">The AI model downloads once (~90 MB) then works fully offline on this device.</p>
+        </div>
 
-    <!-- Result card -->
-    <div id="result" class="card result-card hidden">
-      <div class="result-header">
-        <h3>Species Identified</h3>
-        <span class="badge-open-model">Open CLIP</span>
-      </div>
-      <div class="result-media">
-        <img id="result-img" alt="Captured photo">
-      </div>
-      <div class="guesses-section">
-        <span class="field-label">AI Guesses (tap to choose):</span>
-        <div id="guesses"></div>
-      </div>
-      <div class="edit-fields">
-        <label>Confirmed Name
-          <input id="name-field" placeholder="What did you spot?">
-        </label>
-        <label>Category
-          <select id="type-field">
-            <option value="bird">🐦 Bird</option>
-            <option value="animal">🐾 Animal</option>
-            <option value="insect">🐛 Insect</option>
-            <option value="flower">🌸 Flower / Plant</option>
-          </select>
-        </label>
-      </div>
-      <div class="row modal-actions">
-        <button id="discard-btn" class="secondary">Discard</button>
-        <button id="save-btn" class="primary">Add to Collection ✨</button>
+        <!-- Result card -->
+        <div id="result" class="card result-card hidden">
+          <div class="result-header">
+            <h3>Species Identified</h3>
+            <span class="badge-open-model">Open CLIP</span>
+          </div>
+          <div class="result-media">
+            <img id="result-img" alt="Captured photo">
+          </div>
+          <div class="guesses-section">
+            <span class="field-label">AI Guesses (tap to choose):</span>
+            <div id="guesses"></div>
+          </div>
+          <div class="edit-fields">
+            <label>Confirmed Name
+              <input id="name-field" placeholder="What did you spot?">
+            </label>
+            <label>Category
+              <select id="type-field">
+                <option value="bird">🐦 Bird</option>
+                <option value="animal">🐾 Animal</option>
+                <option value="insect">🐛 Insect</option>
+                <option value="flower">🌸 Flower / Plant</option>
+              </select>
+            </label>
+          </div>
+          <div class="row modal-actions">
+            <button id="discard-btn" class="secondary">Discard</button>
+            <button id="save-btn" class="primary">Add to Collection ✨</button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -161,31 +169,35 @@
       </div>
     </div>
 
-    <div class="map-wrapper">
-      <div id="maplibre-container" class="maplibre-base"></div>
-      <canvas id="map" width="360" height="360"></canvas>
-      <div class="map-overlay-controls">
-        <button id="zoom-in" class="fab-btn" title="Zoom in">+</button>
-        <button id="zoom-out" class="fab-btn" title="Zoom out">&minus;</button>
+    <div class="map-layout-grid">
+      <div class="map-wrapper">
+        <div id="maplibre-container" class="maplibre-base"></div>
+        <canvas id="map" width="360" height="360"></canvas>
+        <div class="map-overlay-controls">
+          <button id="zoom-in" class="fab-btn" title="Zoom in">+</button>
+          <button id="zoom-out" class="fab-btn" title="Zoom out">&minus;</button>
+        </div>
+        <div id="gps-status" class="gps-chip">📍 GPS: Standby</div>
+        <div class="map-attribution">© OpenStreetMap contributors · Protomaps</div>
       </div>
-      <div id="gps-status" class="gps-chip">📍 GPS: Standby</div>
-      <div class="map-attribution">© OpenStreetMap contributors · Protomaps</div>
-    </div>
 
-    <div class="row map-actions">
-      <button id="track-btn" class="primary">Start Tracking Trail</button>
-      <button id="open-maps-btn" class="glass-btn">🗺️ Offline Maps</button>
-    </div>
+      <div class="map-sidebar">
+        <div class="row map-actions">
+          <button id="track-btn" class="primary">Start Tracking Trail</button>
+          <button id="open-maps-btn" class="glass-btn">🗺️ Offline Maps</button>
+        </div>
 
-    <div class="stats" id="stats"></div>
+        <div class="stats" id="stats"></div>
 
-    <div class="hint-card">
-      <p class="hint">Dark squares represent unexplored territory. Walk outdoors to reveal fog-of-war. Street data is stored on this device after your one-time approved download.</p>
-    </div>
+        <div class="hint-card">
+          <p class="hint">Dark squares represent unexplored territory. Walk outdoors to reveal fog-of-war. Street data is stored on this device after your one-time approved download.</p>
+        </div>
 
-    <div class="row data-actions">
-      <button id="export-btn" class="glass-btn">📥 Export Data (JSON)</button>
-      <button id="wipe-btn" class="danger-btn">🗑️ Erase Data</button>
+        <div class="row data-actions">
+          <button id="export-btn" class="glass-btn">📥 Export Data (JSON)</button>
+          <button id="wipe-btn" class="danger-btn">🗑️ Erase Data</button>
+        </div>
+      </div>
     </div>
   </section>
 </main>
