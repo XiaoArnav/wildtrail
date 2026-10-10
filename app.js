@@ -444,13 +444,13 @@ function dismissIntro() {
   intro.classList.add('fade-out');
   setTimeout(() => {
     intro.remove();
-  }, 700);
+  }, 400);
 }
 
 const introEl = $('intro-screen');
 if (introEl) {
   introEl.onclick = dismissIntro;
-  setTimeout(dismissIntro, 2400);
+  setTimeout(dismissIntro, 1100);
 }
 
 // ---------- Offline support ----------
