@@ -916,7 +916,7 @@ nav {
 }
 
 /* ==========================================================================
-   Cinematic Splash Intro Screen (Minimal & Snappy)
+   Cinematic Splash Intro Screen (Sarvam-Style Fluid Portal)
    ========================================================================== */
 .intro-screen {
   position: fixed;
@@ -925,18 +925,34 @@ nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, #11281a 0%, #050d08 100%);
+  background: radial-gradient(circle at center, #0f2619 0%, #050d08 100%);
   cursor: pointer;
-  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.35s ease;
+  overflow: hidden;
+  transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), filter 0.45s ease, visibility 0.45s ease;
 }
 
 .intro-screen.fade-out {
   opacity: 0;
+  transform: scale(1.05);
+  filter: blur(8px);
   visibility: hidden;
   pointer-events: none;
 }
 
+.intro-orb {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(74, 222, 128, 0.25) 0%, rgba(16, 185, 129, 0.08) 50%, transparent 70%);
+  filter: blur(40px);
+  animation: orbBreathe 2s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
 .intro-content {
+  position: relative;
+  z-index: 2;
   text-align: center;
   padding: 24px;
   display: flex;
@@ -947,13 +963,14 @@ nav {
 
 .intro-title {
   margin: 0;
-  font-size: 42px;
+  font-size: 46px;
   font-weight: 800;
-  letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #ffffff 0%, #a7f3d0 45%, var(--accent) 100%);
+  letter-spacing: -0.6px;
+  background: linear-gradient(110deg, #ffffff 10%, #a7f3d0 35%, #4ade80 60%, #ffffff 90%);
+  background-size: 200% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: titlePop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: titleSheen 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .intro-tagline {
@@ -961,18 +978,33 @@ nav {
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 2.5px;
+  letter-spacing: 3px;
   color: #86efac;
-  opacity: 0.95;
-  animation: taglinePop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+  opacity: 0.9;
+  animation: taglineSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
-@keyframes titlePop {
-  0% { opacity: 0; transform: scale(0.92) translateY(10px); filter: blur(4px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+@keyframes orbBreathe {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.15); opacity: 1; }
 }
 
-@keyframes taglinePop {
-  0% { opacity: 0; transform: translateY(6px); letter-spacing: 4px; }
-  100% { opacity: 0.95; transform: translateY(0); letter-spacing: 2.5px; }
+@keyframes titleSheen {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+    background-position: 100% 0;
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    background-position: 0% 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes taglineSlide {
+  0% { opacity: 0; transform: translateY(8px); letter-spacing: 4.5px; }
+  100% { opacity: 0.92; transform: translateY(0); letter-spacing: 3px; }
 }

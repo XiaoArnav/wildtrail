@@ -1,6 +1,6 @@
 // Caches the app shell and the AI library so WildTrail works offline.
 // (The model files themselves are cached by transformers.js in the browser's Cache Storage.)
-const CACHE = 'wildtrail-v5';
+const CACHE = 'wildtrail-v6';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', e => {
