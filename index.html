@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14281d">
+<title>WildTrail</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>WildTrail</h1>
+  <span id="who"></span>
+</header>
+
+<main>
+  <!-- Welcome / local profile -->
+  <section id="view-welcome" class="view">
+    <h2>Touch grass. Collect the real thing.</h2>
+    <p>Find real animals, birds, insects and flowers outside. Everything runs on your phone: no account, no server, no tracking.</p>
+    <label>Choose a trainer name (stays on this device)
+      <input id="name-input" maxlength="24" placeholder="e.g. Arnav">
+    </label>
+    <button id="start-btn" class="primary">Start exploring</button>
+  </section>
+
+  <!-- Capture -->
+  <section id="view-capture" class="view">
+    <div class="camera">
+      <video id="video" playsinline muted></video>
+      <div id="cam-msg">Camera is off</div>
+    </div>
+    <div class="row">
+      <button id="cam-btn">Start camera</button>
+      <button id="snap-btn" class="primary" disabled>Capture</button>
+    </div>
+    <p id="model-status" class="hint">The identification model downloads once (about 90 MB), then works offline.</p>
+
+    <div id="result" class="card hidden">
+      <img id="result-img" alt="Captured photo">
+      <div id="guesses"></div>
+      <label>Name
+        <input id="name-field" placeholder="What is it?">
+      </label>
+      <label>Type
+        <select id="type-field">
+          <option value="animal">Animal</option>
+          <option value="bird">Bird</option>
+          <option value="insect">Insect</option>
+          <option value="flower">Flower / plant</option>
+        </select>
+      </label>
+      <div class="row">
+        <button id="discard-btn">Discard</button>
+        <button id="save-btn" class="primary">Add to collection</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Collection -->
+  <section id="view-collection" class="view">
+    <div class="tabs" id="filter-tabs">
+      <button data-f="all" class="on">All</button>
+      <button data-f="animal">Animals</button>
+      <button data-f="bird">Birds</button>
+      <button data-f="insect">Insects</button>
+      <button data-f="flower">Flowers</button>
+    </div>
+    <div id="grid" class="grid"></div>
+    <p id="empty-msg" class="hint hidden">Nothing here yet. Go find something!</p>
+  </section>
+
+  <!-- Map -->
+  <section id="view-map" class="view">
+    <canvas id="map" width="360" height="360"></canvas>
+    <div class="row">
+      <button id="track-btn">Start tracking</button>
+      <button id="zoom-in">+</button>
+      <button id="zoom-out">&minus;</button>
+    </div>
+    <div class="stats" id="stats"></div>
+    <p class="hint">Dark squares are unexplored. Walk to light up the ground you cover. The map is drawn on your device; no map tiles are downloaded.</p>
+    <div class="row">
+      <button id="export-btn">Export my data</button>
+      <button id="wipe-btn" class="danger">Erase everything</button>
+    </div>
+  </section>
+</main>
+
+<nav id="nav">
+  <button data-v="capture" class="on">Capture</button>
+  <button data-v="collection">Collection</button>
+  <button data-v="map">Map</button>
+</nav>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
