@@ -265,24 +265,64 @@ $('save-btn').onclick = async () => {
   showView('collection');
 };
 
-// ---------- Collection ----------
+// ---------- Collection & Living Journal ----------
 let filter = 'all';
+let currentSort = 'newest';
+
 document.querySelectorAll('#filter-tabs button').forEach(b => b.onclick = () => {
   filter = b.dataset.f;
   document.querySelectorAll('#filter-tabs button').forEach(x => x.classList.toggle('on', x === b));
   renderCollection();
 });
+
+document.querySelectorAll('#sort-pills button').forEach(b => b.onclick = () => {
+  currentSort = b.dataset.s;
+  document.querySelectorAll('#sort-pills button').forEach(x => x.classList.toggle('on', x === b));
+  renderCollection();
+});
+
 async function renderCollection() {
-  const allFinds = (await getAll('finds')).reverse();
-  const finds = allFinds.filter(f => filter === 'all' || f.type === filter);
+  const allFinds = await getAll('finds');
+  let finds = allFinds.filter(f => filter === 'all' || f.type === filter);
+
+  // Sorting / Re-arranging
+  if (currentSort === 'name') {
+    finds.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (currentSort === 'category') {
+    finds.sort((a, b) => a.type.localeCompare(b.type) || (b.time - a.time));
+  } else {
+    // newest first
+    finds.sort((a, b) => b.time - a.time);
+  }
+
   $('collection-stats').textContent = `${allFinds.length} ${allFinds.length === 1 ? 'find' : 'finds'}`;
   const grid = $('grid');
   grid.textContent = '';
   show('empty-msg', finds.length === 0);
-  finds.forEach(f => {
+
+  finds.forEach((f, i) => {
     const t = document.createElement('div');
     t.className = 'tile';
+    t.style.animationDelay = `${Math.min(i * 35, 400)}ms`;
     t.onclick = () => openDetailModal(f);
+
+    // Interactive 3D tilt & holographic sheen
+    t.onmousemove = e => {
+      const rect = t.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      t.style.setProperty('--sheen-x', `${(x * 100).toFixed(1)}%`);
+      t.style.setProperty('--sheen-y', `${(y * 100).toFixed(1)}%`);
+      const rotX = (0.5 - y) * 16;
+      const rotY = (x - 0.5) * 16;
+      t.style.transform = `perspective(600px) rotateX(${rotX.toFixed(1)}deg) rotateY(${rotY.toFixed(1)}deg) scale3d(1.03, 1.03, 1.03)`;
+    };
+    t.onmouseleave = () => {
+      t.style.transform = 'perspective(600px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+    };
+
+    const sheen = document.createElement('div');
+    sheen.className = 'tile-sheen';
 
     const chip = document.createElement('span');
     chip.className = 'tile-chip';
@@ -301,7 +341,7 @@ async function renderCollection() {
     s.textContent = new Date(f.time).toLocaleDateString([], { month: 'short', day: 'numeric' });
     scrim.append(n, s);
 
-    t.append(chip, img, scrim);
+    t.append(sheen, chip, img, scrim);
     grid.appendChild(t);
   });
 }
@@ -510,8 +550,20 @@ async function renderMapAndStats() {
    [cells.size, 'squares explored'],
    [unchartedCells.size, 'uncharted squares'],
    [finds.length, 'total finds'],
-   [species.size, 'unique species']].forEach(([v, l]) => {
+   [species.size, 'unique species']].forEach(([v, l], i) => {
     const d = document.createElement('div'); d.className = 'stat';
+    d.style.animationDelay = `${i * 30}ms`;
+    d.onmousemove = e => {
+      const rect = d.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      const rotX = (0.5 - y) * 12;
+      const rotY = (x - 0.5) * 12;
+      d.style.transform = `perspective(500px) rotateX(${rotX.toFixed(1)}deg) rotateY(${rotY.toFixed(1)}deg) translateY(-2px)`;
+    };
+    d.onmouseleave = () => {
+      d.style.transform = 'none';
+    };
     const b = document.createElement('b'); b.textContent = v;
     const s = document.createElement('span'); s.textContent = l;
     d.append(b, s); $('stats').appendChild(d);

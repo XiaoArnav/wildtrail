@@ -20,6 +20,17 @@
   </div>
 </div>
 
+<div class="ambient-spores" aria-hidden="true">
+  <span class="spore s1"></span>
+  <span class="spore s2"></span>
+  <span class="spore s3"></span>
+  <span class="spore s4"></span>
+  <span class="spore s5"></span>
+  <span class="spore s6"></span>
+  <span class="spore s7"></span>
+  <span class="spore s8"></span>
+</div>
+
 <header>
   <div class="header-inner">
     <div class="brand">
@@ -147,6 +158,14 @@
       <button data-f="animal">🐾 Animals</button>
       <button data-f="insect">🐛 Insects</button>
       <button data-f="flower">🌸 Plants</button>
+    </div>
+    <div class="journal-sort-bar">
+      <span class="sort-label">Arrange:</span>
+      <div class="sort-pills" id="sort-pills">
+        <button class="sort-btn on" data-s="newest">⏱️ Recent</button>
+        <button class="sort-btn" data-s="name">🔤 Name</button>
+        <button class="sort-btn" data-s="category">🐾 Type</button>
+      </div>
     </div>
     <div id="grid" class="grid"></div>
     <div id="empty-msg" class="empty-state hidden">
