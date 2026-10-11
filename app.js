@@ -747,7 +747,81 @@ function pickGuess(g) {
   $('type-field').value = typeOf[g.label] || 'animal';
   [...$('guesses').children].forEach(b => b.classList.toggle('on', b.dataset.label === g.label));
 }
+// ---------- Toast Notifications & Photo Storage Handlers (Options A & C) ----------
+function showToast(message) {
+  let toast = $('wildtrail-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'wildtrail-toast';
+    toast.className = 'uncharted-toast';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<span>${message}</span>`;
+  toast.classList.remove('hidden');
+  if ('vibrate' in navigator) navigator.vibrate(30);
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.classList.add('hidden');
+  }, 2800);
+}
+
+// Option A: Automatically download high-res photo to device storage / gallery
+function autoDownloadPhoto(photoDataUrl, filename) {
+  try {
+    const a = document.createElement('a');
+    a.href = photoDataUrl;
+    a.download = filename || `wildtrail_photo_${Date.now()}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return true;
+  } catch (err) {
+    console.warn('Auto download error:', err);
+    return false;
+  }
+}
+
+// Option C: Native "Save to Photos" / Web Share API Level 2 (iOS Safari / Android Camera Roll)
+async function savePhotoToPhonePhotos(photoDataUrl, specimenName = 'Specimen') {
+  if (!photoDataUrl) return false;
+  const safeName = (specimenName || 'specimen').toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const filename = `wildtrail_${safeName}_${Date.now()}.jpg`;
+
+  try {
+    const res = await fetch(photoDataUrl);
+    const blob = await res.blob();
+    const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `${specimenName} · WildTrail`,
+        text: `Captured in the wild: ${specimenName} 🌿`
+      });
+      showToast('✨ Photo ready to save to your Camera Roll!');
+      return true;
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return false; // user cancelled share sheet
+    console.warn('Native photo share failed, falling back to download:', err);
+  }
+
+  // Fallback: direct high-res download
+  autoDownloadPhoto(photoDataUrl, filename);
+  showToast('💾 High-resolution photo downloaded to device!');
+  return true;
+}
+
 $('discard-btn').onclick = () => { pending = null; show('result', false); };
+
+if ($('save-photos-btn')) {
+  $('save-photos-btn').onclick = async () => {
+    if (!pending || !pending.photo) return;
+    const name = $('name-field').value.trim() || 'Wild Specimen';
+    await savePhotoToPhonePhotos(pending.photo, name);
+  };
+}
+
 $('save-btn').onclick = async () => {
   if (!pending) return;
   const name = $('name-field').value.trim();
@@ -755,11 +829,18 @@ $('save-btn').onclick = async () => {
   playDiscoveryChime();
   if ('vibrate' in navigator) navigator.vibrate([40, 50, 80]);
   const pos = lastPos || await getPosition();
+  const photoToSave = pending.photo;
   await putAll('finds', {
-    name, type: $('type-field').value, photo: pending.photo, time: Date.now(),
+    name, type: $('type-field').value, photo: photoToSave, time: Date.now(),
     lat: pos ? pos.lat : null, lon: pos ? pos.lon : null,
     guessed: pending.guesses[0] ? pending.guesses[0].label : null,
   });
+
+  // Option A: Auto-download high-resolution photo to device storage
+  const safeName = name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+  autoDownloadPhoto(photoToSave, `wildtrail-${safeName}-${Date.now()}.jpg`);
+  showToast(`✨ Saved "${name}" to Collection & downloaded to device!`);
+
   pending = null;
   show('result', false);
   await updateTrainerChip();
@@ -943,6 +1024,13 @@ function open3DStampCard(find) {
   if ($('stamp-back-coords')) $('stamp-back-coords').textContent = coordsText;
 
   // Actions on the back of the card
+  if ($('stamp-action-save-photo')) {
+    $('stamp-action-save-photo').onclick = e => {
+      e.stopPropagation();
+      savePhotoToPhonePhotos(find.photo, find.name);
+    };
+  }
+
   $('stamp-action-postcard').onclick = e => {
     e.stopPropagation();
     openPostcardModal(find);

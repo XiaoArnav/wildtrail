@@ -870,6 +870,41 @@ video {
   color: #06170c;
 }
 
+.result-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.save-photos-full-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(16, 185, 129, 0.16) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.save-photos-full-btn:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(16, 185, 129, 0.28) 100%);
+  border-color: #fbbf24;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
+}
+
+.save-photos-full-btn:active {
+  transform: scale(0.98);
+}
+
 /* Collection View */
 .collection-header {
   display: flex;
@@ -2555,6 +2590,17 @@ canvas#postcard-canvas {
 .stamp-act-btn.primary {
   background: #10b981;
   color: #051a0e;
+}
+
+.stamp-act-btn.photo-btn {
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.stamp-act-btn.photo-btn:active {
+  background: rgba(245, 158, 11, 0.35);
+  transform: scale(0.97);
 }
 
 .stamp-act-btn.danger {

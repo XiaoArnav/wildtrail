@@ -181,9 +181,14 @@
               </select>
             </label>
           </div>
-          <div class="row modal-actions">
-            <button id="discard-btn" class="secondary">Discard</button>
-            <button id="save-btn" class="primary">Add to Collection ✨</button>
+          <div class="result-actions-stack">
+            <div class="row modal-actions">
+              <button id="discard-btn" class="secondary">Discard</button>
+              <button id="save-btn" class="primary">Add to Collection ✨</button>
+            </div>
+            <button id="save-photos-btn" type="button" class="save-photos-full-btn" title="Save photo directly to your phone Photos / Camera Roll">
+              <span>📱 Save Photo to Camera Roll</span>
+            </button>
           </div>
         </div>
       </div>
@@ -363,6 +368,7 @@
 <div id="uncharted-toast" class="uncharted-toast hidden">
   <span>✨ You've entered uncharted ground!</span>
 </div>
+<div id="wildtrail-toast" class="uncharted-toast hidden"></div>
 
 <!-- Floating 3D Stamp & Postcard Modal -->
 <div id="stamp-modal" class="modal-backdrop stamp-modal-backdrop hidden">
@@ -436,6 +442,7 @@
               </div>
 
               <div class="postcard-card-actions">
+                <button id="stamp-action-save-photo" class="stamp-act-btn photo-btn">📱 Save Photo</button>
                 <button id="stamp-action-postcard" class="stamp-act-btn primary">📯 Export Postcard</button>
                 <button id="stamp-action-delete" class="stamp-act-btn danger">🗑️ Delete</button>
               </div>
