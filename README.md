@@ -182,9 +182,11 @@ flowchart TD
 <summary><b>🗺️ GPS Territory Exploration</b></summary>
 
 - **Detailed Outdoor Nature Basemap:** GPU-rendered outdoor map showcasing forests, nature reserves, green spaces, waterways, and walking paths under the fog-of-war.
+- **Dynamic Compass & Flashlight Beam:** Google Maps-style field of view beam that rotates dynamically in real-time with device compass orientation and GPS movement.
+- **Two-Finger Map Rotation:** Smooth multi-touch gesture to rotate the map bearing, with an interactive compass HUD button to snap back to North-up.
 - **Offline Field Caching:** Viewed map tiles are automatically stored in the browser's Service Worker cache for zero-connectivity trail navigation.
 - **Dynamic Fog-of-War:** Uncovers terrain in 20m cells as you physically explore outdoors.
-- **Navigation HUD:** Dynamic vision cone indicating heading, glowing GPS trail, and dynamic scale ruler.
+- **Navigation HUD:** Vision cone indicating heading, glowing GPS trail, and dynamic scale ruler.
 - **Discovery Pins:** Tap any discovery pin to open specimen details and jump directly to its Field Guide card.
 - **Offline PMTiles Maps (Experimental, in progress):** Import open vector street map archives (PMTiles format) directly into IndexedDB for offline wilderness expeditions.
 
@@ -202,7 +204,7 @@ flowchart TD
 | **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser (experimental, in progress) |
 | **Local Persistence** | IndexedDB | Private storage for finds, coordinates, and offline regions |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage shutter sound |
-| **Installable App** | Service Worker (`wildtrail-v43`) · Web App Manifest | Full offline caching and standalone PWA support |
+| **Installable App** | Service Worker (`wildtrail-v44`) · Web App Manifest | Full offline caching and standalone PWA support |
 | **Hosting & Edge** | [Vercel](https://vercel.com/) | Continuous deployment with zero server maintenance |
 
 ---

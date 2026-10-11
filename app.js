@@ -99,8 +99,10 @@ function showView(name) {
   $('nav').classList.toggle('hidden', name === 'welcome');
   if (name === 'collection') renderCollection();
   if (name === 'map') {
+    requestCompassPermission();
     if (mapInstance) {
       mapInstance.resize();
+      mapInstance.setBearing(mapBearingDeg);
       if (lastPos && panX === 0 && panY === 0) {
         mapInstance.panTo([lastPos.lon, lastPos.lat], { duration: 0 });
       }
@@ -128,6 +130,7 @@ async function updateTrainerChip() {
 }
 
 async function boot() {
+  initCompass();
   initMapInteractions();
   init3DCardPhysics();
   initCameraControls();
@@ -1873,6 +1876,83 @@ let cachedCells = new Set();
 let mapAnimId = null;
 let lastAnimTime = 0;
 
+// Compass Orientation & Map Bearing
+let currentHeadingDeg = null;  // Hardware compass heading (0 = North, clockwise 0..360)
+let smoothedHeadingDeg = null; // Smoothly interpolated heading for jitter-free flashlight beam
+let motionHeadingDeg = null;   // GPS speed course heading
+let mapBearingDeg = 0;         // Map rotation bearing in degrees (0 = North up)
+let compassListening = false;
+
+function lerpAngleDeg(current, target, factor = 0.22) {
+  if (current == null) return target;
+  let diff = (target - current) % 360;
+  if (diff < -180) diff += 360;
+  if (diff > 180) diff -= 360;
+  return (current + diff * factor + 360) % 360;
+}
+
+function initCompass() {
+  if (compassListening) return;
+
+  const handleOrientation = e => {
+    let heading = null;
+    // iOS Safari WebKit compass heading (0..360 magnetic North)
+    if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)) {
+      heading = e.webkitCompassHeading;
+    } else if (e.alpha != null && !isNaN(e.alpha)) {
+      // Android / W3C DeviceOrientation (alpha 0..360 counter-clockwise around Z)
+      let alpha = e.alpha;
+      heading = (360 - alpha) % 360;
+      const screenAngle = (window.screen && window.screen.orientation && window.screen.orientation.angle != null)
+        ? window.screen.orientation.angle
+        : (window.orientation || 0);
+      heading = (heading + screenAngle + 360) % 360;
+    }
+
+    if (heading != null && !isNaN(heading)) {
+      currentHeadingDeg = heading;
+      if (smoothedHeadingDeg == null) smoothedHeadingDeg = heading;
+    }
+  };
+
+  try {
+    if ('ondeviceorientationabsolute' in window) {
+      window.addEventListener('deviceorientationabsolute', handleOrientation, { passive: true });
+      compassListening = true;
+    }
+  } catch (_) {}
+
+  try {
+    if ('DeviceOrientationEvent' in window) {
+      window.addEventListener('deviceorientation', handleOrientation, { passive: true });
+      compassListening = true;
+    }
+  } catch (_) {}
+}
+
+function requestCompassPermission() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(res => {
+        if (res === 'granted') initCompass();
+      })
+      .catch(() => {});
+  } else {
+    initCompass();
+  }
+}
+
+function updateCompassHUD() {
+  const needle = $('compass-needle');
+  if (needle) {
+    needle.style.transform = `rotate(${-mapBearingDeg}deg)`;
+  }
+  const compassBtn = $('compass-btn');
+  if (compassBtn) {
+    compassBtn.classList.toggle('compass-active', Math.abs(mapBearingDeg) > 1);
+  }
+}
+
 function getPosition() {
   return new Promise(res => {
     if (!navigator.geolocation) return res(null);
@@ -1897,6 +1977,7 @@ async function loadTrack() {
   if (track.length) lastPos = track[track.length - 1];
 }
 $('track-btn').onclick = () => {
+  requestCompassPermission();
   if (watchId !== null) {
     navigator.geolocation.clearWatch(watchId);
     watchId = null;
@@ -1993,6 +2074,9 @@ async function onPos(p) {
   }
   track.push(pt);
   lastPos = pt;
+  if (p.coords && p.coords.heading != null && !isNaN(p.coords.heading) && (p.coords.speed || 0) > 0.4) {
+    motionHeadingDeg = p.coords.heading;
+  }
   await putAll('track', pt);
   if (mapInstance && panX === 0 && panY === 0) {
     mapInstance.panTo([pt.lon, pt.lat], { duration: 400 });
@@ -2063,45 +2147,58 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   const px = 2 * zoom; // pixels per metre
   const cx = cv.width / 2, cy = cv.height / 2;
   const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
-  const toScreen = m => ({ x: cx + panX + m.x * px, y: cy + panY - m.y * px });
+
+  const cosB = Math.cos(mapBearingDeg * Math.PI / 180);
+  const sinB = Math.sin(mapBearingDeg * Math.PI / 180);
+
+  const toScreen = m => {
+    const rawDx = m.x * px;
+    const rawDy = -m.y * px;
+    const rotDx = rawDx * cosB - rawDy * sinB;
+    const rotDy = rawDx * sinB + rawDy * cosB;
+    return { x: cx + panX + rotDx, y: cy + panY + rotDy };
+  };
   const playerScreenPos = toScreen({ x: 0, y: 0 });
 
   updateScaleRuler(px);
 
   // 1. Subtle Cartographic Coordinate Grid
   const gridStepMeters = (zoom < 0.4) ? 200 : (zoom < 1.2 ? 100 : 50);
-  const minMx = Math.floor((-cx - panX) / (gridStepMeters * px)) * gridStepMeters;
-  const maxMx = Math.ceil((cv.width - cx - panX) / (gridStepMeters * px)) * gridStepMeters;
-  const minMy = Math.floor((cy + panY - cv.height) / (gridStepMeters * px)) * gridStepMeters;
-  const maxMy = Math.ceil((cy + panY) / (gridStepMeters * px)) * gridStepMeters;
+  const maxSpan = Math.max(cv.width, cv.height) * 1.5;
+  const minM = Math.floor(-maxSpan / (gridStepMeters * px)) * gridStepMeters;
+  const maxM = Math.ceil(maxSpan / (gridStepMeters * px)) * gridStepMeters;
 
   g.save();
+  g.translate(cx + panX, cy + panY);
+  if (mapBearingDeg !== 0) {
+    g.rotate(mapBearingDeg * Math.PI / 180);
+  }
   g.strokeStyle = 'rgba(52, 211, 153, 0.08)';
   g.lineWidth = 1;
   g.font = '9px monospace';
   g.fillStyle = 'rgba(52, 211, 153, 0.4)';
 
-  for (let mx = minMx; mx <= maxMx; mx += gridStepMeters) {
-    const sx = cx + panX + mx * px;
+  for (let mx = minM; mx <= maxM; mx += gridStepMeters) {
+    const sx = mx * px;
     g.beginPath();
-    g.moveTo(sx, 0);
-    g.lineTo(sx, cv.height);
+    g.moveTo(sx, -maxSpan);
+    g.lineTo(sx, maxSpan);
     g.stroke();
-    if (mx !== 0 && sx > 40 && sx < cv.width - 40) {
+    if (mx !== 0 && sx > -cv.width / 2 && sx < cv.width / 2) {
       const label = mx > 0 ? `+${mx}m` : `${mx}m`;
-      g.fillText(label, sx + 3, cv.height - 8);
+      g.fillText(label, sx + 3, cv.height / 2 - 8);
     }
   }
 
-  for (let my = minMy; my <= maxMy; my += gridStepMeters) {
-    const sy = cy + panY - my * px;
+  for (let my = minM; my <= maxM; my += gridStepMeters) {
+    const sy = -my * px;
     g.beginPath();
-    g.moveTo(0, sy);
-    g.lineTo(cv.width, sy);
+    g.moveTo(-maxSpan, sy);
+    g.lineTo(maxSpan, sy);
     g.stroke();
-    if (my !== 0 && sy > 20 && sy < cv.height - 20) {
+    if (my !== 0 && sy > -cv.height / 2 && sy < cv.height / 2) {
       const label = my > 0 ? `N+${my}m` : `S${my}m`;
-      g.fillText(label, 8, sy - 3);
+      g.fillText(label, -cv.width / 2 + 8, sy - 3);
     }
   }
   g.restore();
@@ -2126,19 +2223,25 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
     const [i, j] = key.split(',').map(Number);
     const s = toScreen({ x: i * CELL, y: j * CELL });
     const sz = CELL * px;
+    g.save();
+    g.translate(s.x, s.y);
+    if (mapBearingDeg !== 0) {
+      g.rotate(mapBearingDeg * Math.PI / 180);
+    }
     if (unchartedCells.has(key)) {
       g.fillStyle = 'rgba(245, 158, 11, 0.28)';
-      g.fillRect(s.x, s.y - sz, sz, sz);
+      g.fillRect(0, -sz, sz, sz);
       g.strokeStyle = '#f59e0b';
       g.lineWidth = 1.5;
-      g.strokeRect(s.x, s.y - sz, sz, sz);
+      g.strokeRect(0, -sz, sz, sz);
     } else {
       g.fillStyle = mapInstance ? 'rgba(16, 185, 129, 0.22)' : 'rgba(17, 74, 39, 0.75)';
-      g.fillRect(s.x, s.y - sz, sz, sz);
+      g.fillRect(0, -sz, sz, sz);
       g.strokeStyle = 'rgba(52, 211, 153, 0.16)';
       g.lineWidth = 0.5;
-      g.strokeRect(s.x, s.y - sz, sz, sz);
+      g.strokeRect(0, -sz, sz, sz);
     }
+    g.restore();
   });
 
   // 4. GPS Trail with neon dual-stroke
@@ -2200,9 +2303,19 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
     g.restore();
   });
 
-  // 6. Player Heading & Vision Cone
-  let headingAngle = -Math.PI / 2;
-  if (track.length >= 2) {
+  // 6. Player Heading & Vision Cone ("Flashlight Beam")
+  if (currentHeadingDeg != null) {
+    smoothedHeadingDeg = lerpAngleDeg(smoothedHeadingDeg, currentHeadingDeg, 0.22);
+  } else if (motionHeadingDeg != null) {
+    smoothedHeadingDeg = lerpAngleDeg(smoothedHeadingDeg, motionHeadingDeg, 0.22);
+  }
+
+  let effectiveHeadingDeg = 0;
+  if (smoothedHeadingDeg != null) {
+    effectiveHeadingDeg = smoothedHeadingDeg;
+  } else if (motionHeadingDeg != null) {
+    effectiveHeadingDeg = motionHeadingDeg;
+  } else if (track.length >= 2) {
     const p1 = track[track.length - 2];
     const p2 = track[track.length - 1];
     const m1 = project(p1, origin);
@@ -2210,18 +2323,23 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
     const dx = m2.x - m1.x;
     const dy = m2.y - m1.y;
     if (Math.hypot(dx, dy) > 0.4) {
-      headingAngle = Math.atan2(-dy, dx);
+      effectiveHeadingDeg = ((Math.atan2(dx, dy) * 180 / Math.PI) + 360) % 360;
     }
   }
 
-  const coneRadius = Math.max(35, Math.min(95, 65 * zoom));
-  const coneArc = Math.PI / 4.5;
+  // Screen heading relative to map bearing (Google Maps style)
+  const relativeHeadingDeg = (effectiveHeadingDeg - mapBearingDeg + 360) % 360;
+  // Convert clockwise degrees from North (where North is -PI/2) to canvas angle
+  const headingAngle = (relativeHeadingDeg * Math.PI / 180) - (Math.PI / 2);
+
+  const coneRadius = Math.max(38, Math.min(105, 70 * zoom));
+  const coneArc = Math.PI / 4.2; // ~43 deg beam arc
   const coneGrad = g.createRadialGradient(
     playerScreenPos.x, playerScreenPos.y, 4,
     playerScreenPos.x, playerScreenPos.y, coneRadius
   );
-  coneGrad.addColorStop(0, 'rgba(52, 211, 153, 0.4)');
-  coneGrad.addColorStop(0.5, 'rgba(52, 211, 153, 0.14)');
+  coneGrad.addColorStop(0, 'rgba(52, 211, 153, 0.45)');
+  coneGrad.addColorStop(0.45, 'rgba(52, 211, 153, 0.16)');
   coneGrad.addColorStop(1, 'rgba(52, 211, 153, 0.0)');
 
   g.save();
@@ -2358,26 +2476,36 @@ function initMapInteractions() {
   cv.addEventListener('gesturechange', e => e.preventDefault());
   cv.addEventListener('gestureend', e => e.preventDefault());
 
-  // ---------- 1. Multi-Touch Pinch-to-Zoom & Touch Panning (Fingers) ----------
+  // ---------- 1. Multi-Touch Pinch-to-Zoom & Twist Rotation & Panning ----------
   let lastTouchX = 0;
   let lastTouchY = 0;
   let touchStartPos = { x: 0, y: 0 };
   let touchMoved = false;
   let isPinching = false;
   let lastPinchDist = 0;
+  let lastPinchAngle = 0;
+  let initialPinchAngle = 0;
+  let isRotatingTouch = false;
+  let touchStartBearing = 0;
 
   cv.addEventListener('touchstart', e => {
+    requestCompassPermission();
     if (e.touches.length === 2) {
-      // Two fingers: initiate pinch-to-zoom
       e.preventDefault();
       isPinching = true;
+      isRotatingTouch = false;
       touchMoved = true;
       lastPinchDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
+      lastPinchAngle = Math.atan2(
+        e.touches[1].clientY - e.touches[0].clientY,
+        e.touches[1].clientX - e.touches[0].clientX
+      );
+      initialPinchAngle = lastPinchAngle;
+      touchStartBearing = mapBearingDeg;
     } else if (e.touches.length === 1 && !isPinching) {
-      // One finger: initiate panning
       touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       lastTouchX = e.touches[0].clientX;
       lastTouchY = e.touches[0].clientY;
@@ -2387,26 +2515,44 @@ function initMapInteractions() {
 
   cv.addEventListener('touchmove', e => {
     if (e.touches.length === 2) {
-      // Two fingers: dynamically zoom in/out with fingers
       e.preventDefault();
       const currentDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
+      const currentAngle = Math.atan2(
+        e.touches[1].clientY - e.touches[0].clientY,
+        e.touches[1].clientX - e.touches[0].clientX
+      );
+
+      // Pinch zoom
       if (lastPinchDist > 8 && currentDist > 8) {
         const factor = currentDist / lastPinchDist;
         const newZoom = Math.min(8, Math.max(0.15, zoom * factor));
         zoom = newZoom;
-
         if (mapInstance) {
           const deltaZoom = Math.log2(factor);
           mapInstance.setZoom(mapInstance.getZoom() + deltaZoom);
         }
         lastPinchDist = currentDist;
-        drawMapCanvas(cachedFinds, cachedCells);
       }
+
+      // Two-finger twist rotation
+      let deltaAngle = currentAngle - initialPinchAngle;
+      if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+      if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+
+      if (Math.abs(deltaAngle) > 0.08 || isRotatingTouch) {
+        isRotatingTouch = true;
+        const deltaDeg = deltaAngle * (180 / Math.PI);
+        mapBearingDeg = (touchStartBearing + deltaDeg + 360) % 360;
+        if (mapInstance) {
+          mapInstance.setBearing(mapBearingDeg);
+        }
+        updateCompassHUD();
+      }
+      drawMapCanvas(cachedFinds, cachedCells);
     } else if (e.touches.length === 1 && !isPinching) {
-      // One finger: smooth 1:1 direct manipulation dragging
       const stepX = e.touches[0].clientX - lastTouchX;
       const stepY = e.touches[0].clientY - lastTouchY;
       const totalDist = Math.hypot(e.touches[0].clientX - touchStartPos.x, e.touches[0].clientY - touchStartPos.y);
@@ -2433,6 +2579,7 @@ function initMapInteractions() {
   cv.addEventListener('touchend', e => {
     if (e.touches.length < 2) {
       isPinching = false;
+      isRotatingTouch = false;
     }
     if (e.touches.length === 1) {
       lastTouchX = e.touches[0].clientX;
@@ -2472,9 +2619,22 @@ function initMapInteractions() {
     }
   });
 
-  // ---------- 2. Mouse Dragging & Pin Selection (Desktop) ----------
+  // ---------- 2. Mouse Dragging & Rotation (Desktop) ----------
+  let isRotatingMouse = false;
+  let rotateStartPos = { x: 0, y: 0 };
+  let rotateStartBearing = 0;
+
   cv.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'touch') return; // Handled by touch events above
+    if (e.pointerType === 'touch') return;
+    requestCompassPermission();
+    if (e.shiftKey || e.button === 2) {
+      e.preventDefault();
+      isRotatingMouse = true;
+      rotateStartPos = { x: e.clientX, y: e.clientY };
+      rotateStartBearing = mapBearingDeg;
+      try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+      return;
+    }
     isDragging = true;
     dragMoved = false;
     dragDistance = 0;
@@ -2483,7 +2643,17 @@ function initMapInteractions() {
   });
 
   cv.addEventListener('pointermove', e => {
-    if (e.pointerType === 'touch' || !isDragging) return;
+    if (e.pointerType === 'touch') return;
+    if (isRotatingMouse) {
+      e.preventDefault();
+      const dx = e.clientX - rotateStartPos.x;
+      mapBearingDeg = (rotateStartBearing + dx * 0.45 + 360) % 360;
+      if (mapInstance) mapInstance.setBearing(mapBearingDeg);
+      updateCompassHUD();
+      drawMapCanvas(cachedFinds, cachedCells);
+      return;
+    }
+    if (!isDragging) return;
     const dx = e.clientX - dragStart.x;
     const dy = e.clientY - dragStart.y;
     dragDistance += Math.hypot(dx, dy);
@@ -2506,7 +2676,13 @@ function initMapInteractions() {
   });
 
   const onPointerEnd = e => {
-    if (e.pointerType === 'touch' || !isDragging) return;
+    if (e.pointerType === 'touch') return;
+    if (isRotatingMouse) {
+      isRotatingMouse = false;
+      try { cv.releasePointerCapture(e.pointerId); } catch (_) {}
+      return;
+    }
+    if (!isDragging) return;
     isDragging = false;
     cv.classList.remove('is-dragging');
     try { cv.releasePointerCapture(e.pointerId); } catch (_) {}
@@ -2542,11 +2718,11 @@ function initMapInteractions() {
 
   cv.addEventListener('pointerup', onPointerEnd);
   cv.addEventListener('pointercancel', onPointerEnd);
+  cv.addEventListener('contextmenu', e => e.preventDefault());
 
   // ---------- 3. Trackpad Pinch-to-Zoom & Mouse Wheel Zoom ----------
   cv.addEventListener('wheel', e => {
     e.preventDefault();
-    // Mac trackpad pinch emits ctrlKey: true; standard mouse wheel emits deltaY
     const factor = e.ctrlKey ? Math.exp(-e.deltaY * 0.015) : (e.deltaY < 0 ? 1.15 : 0.87);
     const oldZoom = zoom;
     zoom = Math.min(8, Math.max(0.15, zoom * factor));
@@ -2571,6 +2747,21 @@ function initMapInteractions() {
       drawMapCanvas(cachedFinds, cachedCells);
     };
   }
+
+  // Compass button (Reset North)
+  const compassBtn = $('compass-btn');
+  if (compassBtn) {
+    compassBtn.onclick = () => {
+      requestCompassPermission();
+      mapBearingDeg = 0;
+      if (mapInstance) {
+        mapInstance.setBearing(0);
+      }
+      updateCompassHUD();
+      drawMapCanvas(cachedFinds, cachedCells);
+    };
+  }
+  updateCompassHUD();
 
   // Popup close button
   const closeBtn = $('popup-close-btn');
@@ -2785,6 +2976,7 @@ async function initDefaultOutdoorMap() {
       style: OUTDOOR_MAP_STYLE,
       center: [centerLon, centerLat],
       zoom: 15.5,
+      bearing: mapBearingDeg,
       attributionControl: false,
       interactive: false
     });
@@ -2862,6 +3054,7 @@ async function initMapLibreWithRegion(region) {
       style: offlineStyle,
       center: [centerLon, centerLat],
       zoom: 14,
+      bearing: mapBearingDeg,
       attributionControl: false,
       interactive: false // Controlled via WildTrail HUD zoom buttons
     });

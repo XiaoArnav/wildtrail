@@ -1368,6 +1368,11 @@ canvas#map.is-dragging {
   animation: recenterPulse 1.8s ease-in-out infinite;
 }
 
+.fab-btn.compass-active {
+  border-color: #34d399;
+  box-shadow: 0 0 14px rgba(52, 211, 153, 0.45);
+}
+
 @keyframes recenterPulse {
   0%, 100% { transform: scale(1); box-shadow: 0 0 10px var(--amber-glow); }
   50% { transform: scale(1.1); box-shadow: 0 0 18px rgba(245, 158, 11, 0.6); }
