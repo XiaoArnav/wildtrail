@@ -1,6 +1,6 @@
 // Caches the app shell and the AI library so WildTrail works offline.
 // (The model files themselves are cached by transformers.js in the browser's Cache Storage.)
-const CACHE = 'wildtrail-v12';
+const CACHE = 'wildtrail-v13';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg'];
 const EXTERNAL_ASSETS = [
   'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css',

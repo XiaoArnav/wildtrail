@@ -187,18 +187,53 @@
         <button id="edge-dismiss-btn" class="edge-btn secondary-edge">Not now</button>
       </div>
     </div>
+ 
+    <!-- Expedition Rank & Level Progression -->
+    <div class="expedition-hud">
+      <div class="expedition-hud-header">
+        <div class="rank-info">
+          <span class="rank-badge" id="player-rank">Scout Lv. 1</span>
+          <span class="rank-title" id="player-title">Trail Novice</span>
+        </div>
+        <div class="rank-stats-badge">
+          <span id="player-xp-text">0 / 250 XP</span>
+        </div>
+      </div>
+      <div class="expedition-xp-bar-wrap">
+        <div class="expedition-xp-bar" id="player-xp-bar" style="width: 0%;"></div>
+      </div>
+    </div>
 
     <div class="map-layout-grid">
       <div class="map-wrapper">
         <div id="maplibre-container" class="maplibre-base"></div>
         <canvas id="map" width="360" height="360"></canvas>
         <div class="map-overlay-controls">
+          <button id="recenter-btn" class="fab-btn" title="Recenter on player">🎯</button>
           <button id="zoom-in" class="fab-btn" title="Zoom in">+</button>
           <button id="zoom-out" class="fab-btn" title="Zoom out">&minus;</button>
           <button id="map-fullscreen-btn" class="fab-btn" title="Toggle fullscreen">⛶</button>
         </div>
         <div id="gps-status" class="gps-chip">📍 GPS: Standby</div>
+        <div class="map-scale-ruler">
+          <div class="scale-bar-line"></div>
+          <span id="scale-label" class="scale-label">100 m</span>
+        </div>
         <div class="map-attribution">© OpenStreetMap contributors · Protomaps</div>
+
+        <!-- Interactive Map Pin Popup -->
+        <div id="map-pin-popup" class="map-pin-popup hidden">
+          <button id="popup-close-btn" class="popup-close" aria-label="Close popup">&times;</button>
+          <img id="popup-img" src="" alt="Discovery photo">
+          <div class="popup-info">
+            <div class="popup-header-row">
+              <b id="popup-name"></b>
+              <span id="popup-badge" class="popup-badge"></span>
+            </div>
+            <small id="popup-date"></small>
+            <button id="popup-view-btn" class="popup-action-btn">Inspect in Field Guide 📖</button>
+          </div>
+        </div>
       </div>
 
       <div class="map-sidebar">

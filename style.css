@@ -898,6 +898,11 @@ canvas#map {
   display: block;
   z-index: 2;
   touch-action: none;
+  cursor: grab;
+}
+
+canvas#map.is-dragging {
+  cursor: grabbing;
 }
 
 .map-attribution {
@@ -911,6 +916,33 @@ canvas#map {
   border-radius: 4px;
   z-index: 10;
   pointer-events: none;
+}
+
+.map-scale-ruler {
+  position: absolute;
+  bottom: 26px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.scale-bar-line {
+  width: 50px;
+  height: 3px;
+  background: #fff;
+  border-left: 2px solid #fff;
+  border-right: 2px solid #fff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+}
+
+.scale-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
 }
 
 .map-overlay-controls {
@@ -935,6 +967,211 @@ canvas#map {
   font-weight: 700;
   padding: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fab-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(52, 211, 153, 0.5);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 12px var(--accent-glow);
+}
+
+.fab-btn:active {
+  transform: scale(0.92);
+}
+
+.fab-btn.recenter-active {
+  border-color: var(--amber);
+  box-shadow: 0 0 14px var(--amber-glow);
+  color: #fef3c7;
+  animation: recenterPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes recenterPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px var(--amber-glow); }
+  50% { transform: scale(1.1); box-shadow: 0 0 18px rgba(245, 158, 11, 0.6); }
+}
+
+/* Interactive Map Pin Popup Card */
+.map-pin-popup {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  width: calc(100% - 28px);
+  max-width: 290px;
+  z-index: 25;
+  background: rgba(10, 22, 15, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(16, 185, 129, 0.2);
+  animation: popupSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popupSlide {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.map-pin-popup.hidden {
+  display: none !important;
+}
+
+.map-pin-popup img {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.popup-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popup-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.popup-header-row b {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popup-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.popup-info small {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.popup-action-btn {
+  margin-top: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #a7f3d0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.popup-action-btn:hover {
+  background: var(--accent);
+  color: #05140b;
+}
+
+.popup-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.popup-close:hover {
+  color: #fff;
+}
+
+/* Expedition Rank & Level HUD */
+.expedition-hud {
+  background: rgba(14, 29, 20, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.expedition-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.rank-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rank-badge {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.35) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  letter-spacing: 0.5px;
+}
+
+.rank-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rank-stats-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.expedition-xp-bar-wrap {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.expedition-xp-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #34d399 60%, #fbbf24 100%);
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .gps-chip {

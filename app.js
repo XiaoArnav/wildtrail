@@ -99,6 +99,9 @@ function showView(name) {
     if (mapInstance) mapInstance.resize();
     renderMapAndStats();
     checkActiveRegionMap();
+    startMapAnim();
+  } else {
+    stopMapAnim();
   }
 }
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => showView(b.dataset.v));
@@ -117,6 +120,7 @@ async function updateTrainerChip() {
 }
 
 async function boot() {
+  initMapInteractions();
   const name = await metaGet('name');
   if (!name) { showView('welcome'); return; }
   await updateTrainerChip();
@@ -381,6 +385,17 @@ const CELL = 20;            // metres per explored square
 let zoom = 1;
 const unchartedCells = new Set();
 let unchartedToastShown = false;
+let panX = 0, panY = 0;
+let isDragging = false;
+let dragStart = { x: 0, y: 0 };
+let dragDistance = 0;
+let dragMoved = false;
+let renderedPins = [];
+let activePopupFind = null;
+let cachedFinds = [];
+let cachedCells = new Set();
+let mapAnimId = null;
+let lastAnimTime = 0;
 
 function getPosition() {
   return new Promise(res => {
@@ -532,22 +547,325 @@ function project(pt, origin) { // metres east/north of origin
   return { x: (pt.lon - origin.lon) * k * Math.cos(origin.lat * Math.PI / 180), y: (pt.lat - origin.lat) * k };
 }
 
+function updateExpeditionHUD(cellsCount, unchartedCount, findsCount) {
+  const distanceXp = Math.floor(totalMeters / 10);
+  const cellXp = cellsCount * 10;
+  const unchartedXp = unchartedCount * 25;
+  const findXp = findsCount * 50;
+  const currentXp = distanceXp + cellXp + unchartedXp + findXp;
+
+  const RANKS = [
+    { title: 'Trail Novice', badge: 'Scout Lv. 1', max: 150 },
+    { title: 'Pathfinder', badge: 'Scout Lv. 2', max: 350 },
+    { title: 'Field Ranger', badge: 'Ranger Lv. 3', max: 700 },
+    { title: 'Wilderness Tracker', badge: 'Tracker Lv. 4', max: 1200 },
+    { title: 'Master Naturalist', badge: 'Botanist Lv. 5', max: 2000 },
+    { title: 'Mythic Explorer', badge: 'Legend Lv. 6', max: 3500 }
+  ];
+
+  let rankIdx = 0;
+  let prevThreshold = 0;
+  for (let i = 0; i < RANKS.length; i++) {
+    if (currentXp >= RANKS[i].max && i < RANKS.length - 1) {
+      prevThreshold = RANKS[i].max;
+      rankIdx = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  const currentRank = RANKS[rankIdx];
+  const nextThreshold = currentRank.max;
+  const xpIntoRank = Math.max(0, currentXp - prevThreshold);
+  const xpNeeded = Math.max(1, nextThreshold - prevThreshold);
+  const pct = Math.min(100, Math.max(0, (xpIntoRank / xpNeeded) * 100));
+
+  if ($('player-rank')) $('player-rank').textContent = currentRank.badge;
+  if ($('player-title')) $('player-title').textContent = currentRank.title;
+  if ($('player-xp-bar')) $('player-xp-bar').style.width = `${pct.toFixed(1)}%`;
+  if ($('player-xp-text')) $('player-xp-text').textContent = `${currentXp} / ${nextThreshold} XP`;
+}
+
+function updateScaleRuler(px) {
+  const rawMeters = 50 / px;
+  const niceSteps = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+  let chosenStep = niceSteps[0];
+  for (const step of niceSteps) {
+    if (rawMeters <= step * 1.5) {
+      chosenStep = step;
+      break;
+    }
+    chosenStep = step;
+  }
+  const lineWidthPx = Math.max(30, Math.min(100, Math.round(chosenStep * px)));
+  const lineEl = document.querySelector('.scale-bar-line');
+  if (lineEl) lineEl.style.width = `${lineWidthPx}px`;
+  const labelEl = $('scale-label');
+  if (labelEl) labelEl.textContent = chosenStep >= 1000 ? `${(chosenStep / 1000).toFixed(0)} km` : `${chosenStep} m`;
+}
+
+function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
+  const cv = $('map');
+  if (!cv) return;
+  const g = cv.getContext('2d');
+  const rect = cv.getBoundingClientRect();
+  if (rect.width && rect.height) {
+    const rw = Math.round(rect.width);
+    const rh = Math.round(rect.height);
+    if (cv.width !== rw || cv.height !== rh) {
+      cv.width = rw;
+      cv.height = rh;
+    }
+  }
+
+  if (mapInstance) {
+    g.clearRect(0, 0, cv.width, cv.height);
+  } else {
+    g.fillStyle = '#061009';
+    g.fillRect(0, 0, cv.width, cv.height);
+  }
+
+  const px = 2 * zoom; // pixels per metre
+  const cx = cv.width / 2, cy = cv.height / 2;
+  const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
+  const toScreen = m => ({ x: cx + panX + m.x * px, y: cy + panY - m.y * px });
+  const playerScreenPos = toScreen({ x: 0, y: 0 });
+
+  updateScaleRuler(px);
+
+  // 1. Subtle Cartographic Coordinate Grid
+  const gridStepMeters = (zoom < 0.4) ? 200 : (zoom < 1.2 ? 100 : 50);
+  const minMx = Math.floor((-cx - panX) / (gridStepMeters * px)) * gridStepMeters;
+  const maxMx = Math.ceil((cv.width - cx - panX) / (gridStepMeters * px)) * gridStepMeters;
+  const minMy = Math.floor((cy + panY - cv.height) / (gridStepMeters * px)) * gridStepMeters;
+  const maxMy = Math.ceil((cy + panY) / (gridStepMeters * px)) * gridStepMeters;
+
+  g.save();
+  g.strokeStyle = 'rgba(52, 211, 153, 0.08)';
+  g.lineWidth = 1;
+  g.font = '9px monospace';
+  g.fillStyle = 'rgba(52, 211, 153, 0.4)';
+
+  for (let mx = minMx; mx <= maxMx; mx += gridStepMeters) {
+    const sx = cx + panX + mx * px;
+    g.beginPath();
+    g.moveTo(sx, 0);
+    g.lineTo(sx, cv.height);
+    g.stroke();
+    if (mx !== 0 && sx > 40 && sx < cv.width - 40) {
+      const label = mx > 0 ? `+${mx}m` : `${mx}m`;
+      g.fillText(label, sx + 3, cv.height - 8);
+    }
+  }
+
+  for (let my = minMy; my <= maxMy; my += gridStepMeters) {
+    const sy = cy + panY - my * px;
+    g.beginPath();
+    g.moveTo(0, sy);
+    g.lineTo(cv.width, sy);
+    g.stroke();
+    if (my !== 0 && sy > 20 && sy < cv.height - 20) {
+      const label = my > 0 ? `N+${my}m` : `S${my}m`;
+      g.fillText(label, 8, sy - 3);
+    }
+  }
+  g.restore();
+
+  // 2. Topographical elevation contour rings
+  g.save();
+  g.strokeStyle = 'rgba(52, 211, 153, 0.06)';
+  g.setLineDash([5, 6]);
+  g.lineWidth = 1;
+  [50, 120, 220, 360, 520].forEach(r => {
+    const rPx = r * px;
+    if (rPx > 6 && rPx < Math.max(cv.width, cv.height) * 2) {
+      g.beginPath();
+      g.arc(playerScreenPos.x, playerScreenPos.y, rPx, 0, Math.PI * 2);
+      g.stroke();
+    }
+  });
+  g.restore();
+
+  // 3. Explored squares
+  cells.forEach(key => {
+    const [i, j] = key.split(',').map(Number);
+    const s = toScreen({ x: i * CELL, y: j * CELL });
+    const sz = CELL * px;
+    if (unchartedCells.has(key)) {
+      g.fillStyle = 'rgba(245, 158, 11, 0.28)';
+      g.fillRect(s.x, s.y - sz, sz, sz);
+      g.strokeStyle = '#f59e0b';
+      g.lineWidth = 1.5;
+      g.strokeRect(s.x, s.y - sz, sz, sz);
+    } else {
+      g.fillStyle = mapInstance ? 'rgba(16, 185, 129, 0.22)' : 'rgba(17, 74, 39, 0.75)';
+      g.fillRect(s.x, s.y - sz, sz, sz);
+      g.strokeStyle = 'rgba(52, 211, 153, 0.16)';
+      g.lineWidth = 0.5;
+      g.strokeRect(s.x, s.y - sz, sz, sz);
+    }
+  });
+
+  // 4. GPS Trail with neon dual-stroke
+  if (track.length > 1) {
+    g.save();
+    g.strokeStyle = 'rgba(16, 185, 129, 0.35)';
+    g.lineWidth = 5;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.beginPath();
+    track.forEach((pt, i) => {
+      const s = toScreen(project(pt, origin));
+      i ? g.lineTo(s.x, s.y) : g.moveTo(s.x, s.y);
+    });
+    g.stroke();
+
+    g.strokeStyle = '#34d399';
+    g.lineWidth = 2.5;
+    g.stroke();
+    g.restore();
+  }
+
+  // 5. Interactive Discovery Pins
+  renderedPins = [];
+  (finds || []).filter(f => f.lat != null && f.lon != null).forEach(f => {
+    const s = toScreen(project(f, origin));
+    renderedPins.push({ find: f, x: s.x, y: s.y, r: 13 });
+
+    g.save();
+    // Drop shadow
+    g.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    g.beginPath();
+    g.ellipse(s.x, s.y + 12, 8, 3.5, 0, 0, Math.PI * 2);
+    g.fill();
+
+    // Pin bottom tip
+    g.fillStyle = '#f59e0b';
+    g.beginPath();
+    g.moveTo(s.x - 5, s.y + 5);
+    g.lineTo(s.x + 5, s.y + 5);
+    g.lineTo(s.x, s.y + 13);
+    g.closePath();
+    g.fill();
+
+    // Outer circle
+    g.fillStyle = '#0a1d13';
+    g.strokeStyle = '#fbbf24';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(s.x, s.y, 11, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+
+    // Emoji icon
+    g.font = '12px system-ui';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(ICONS[f.type] || '🌿', s.x, s.y);
+    g.restore();
+  });
+
+  // 6. Player Heading & Vision Cone
+  let headingAngle = -Math.PI / 2;
+  if (track.length >= 2) {
+    const p1 = track[track.length - 2];
+    const p2 = track[track.length - 1];
+    const m1 = project(p1, origin);
+    const m2 = project(p2, origin);
+    const dx = m2.x - m1.x;
+    const dy = m2.y - m1.y;
+    if (Math.hypot(dx, dy) > 0.4) {
+      headingAngle = Math.atan2(-dy, dx);
+    }
+  }
+
+  const coneRadius = Math.max(35, Math.min(95, 65 * zoom));
+  const coneArc = Math.PI / 4.5;
+  const coneGrad = g.createRadialGradient(
+    playerScreenPos.x, playerScreenPos.y, 4,
+    playerScreenPos.x, playerScreenPos.y, coneRadius
+  );
+  coneGrad.addColorStop(0, 'rgba(52, 211, 153, 0.4)');
+  coneGrad.addColorStop(0.5, 'rgba(52, 211, 153, 0.14)');
+  coneGrad.addColorStop(1, 'rgba(52, 211, 153, 0.0)');
+
+  g.save();
+  g.fillStyle = coneGrad;
+  g.beginPath();
+  g.moveTo(playerScreenPos.x, playerScreenPos.y);
+  g.arc(playerScreenPos.x, playerScreenPos.y, coneRadius, headingAngle - coneArc, headingAngle + coneArc);
+  g.closePath();
+  g.fill();
+  g.restore();
+
+  // 7. Radiant Footstep Ripples / Beacon
+  const pulseTime = (Date.now() % 2000) / 2000;
+  const pulseR = 8 + pulseTime * 22;
+  const pulseAlpha = Math.max(0, 1 - pulseTime) * 0.7;
+
+  g.save();
+  g.strokeStyle = `rgba(52, 211, 153, ${pulseAlpha})`;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(playerScreenPos.x, playerScreenPos.y, pulseR, 0, Math.PI * 2);
+  g.stroke();
+
+  const pulse2Time = ((Date.now() + 1000) % 2000) / 2000;
+  const pulse2R = 8 + pulse2Time * 22;
+  const pulse2Alpha = Math.max(0, 1 - pulse2Time) * 0.5;
+  g.strokeStyle = `rgba(245, 158, 11, ${pulse2Alpha})`;
+  g.beginPath();
+  g.arc(playerScreenPos.x, playerScreenPos.y, pulse2R, 0, Math.PI * 2);
+  g.stroke();
+
+  // Player Core Avatar
+  g.fillStyle = 'rgba(16, 185, 129, 0.35)';
+  g.beginPath();
+  g.arc(playerScreenPos.x, playerScreenPos.y, 11, 0, Math.PI * 2);
+  g.fill();
+
+  g.fillStyle = '#10b981';
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 2.5;
+  g.beginPath();
+  g.arc(playerScreenPos.x, playerScreenPos.y, 6.5, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+
+  const tipX = playerScreenPos.x + Math.cos(headingAngle) * 11;
+  const tipY = playerScreenPos.y + Math.sin(headingAngle) * 11;
+  g.fillStyle = '#fbbf24';
+  g.beginPath();
+  g.arc(tipX, tipY, 2.5, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+
+  // If no track yet, show helpful hint
+  if (!track.length) {
+    g.fillStyle = '#92a89a';
+    g.font = '13px system-ui';
+    g.textAlign = 'center';
+    g.fillText('Start tracking to uncover the territory', playerScreenPos.x, playerScreenPos.y + 40);
+  }
+}
+
 async function renderMapAndStats() {
   const finds = await getAll('finds');
-  const cells = new Set();
+  cachedFinds = finds;
+  cachedCells = new Set();
   const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
 
   track.forEach(pt => {
     const m = project(pt, origin);
     const key = Math.floor(m.x / CELL) + ',' + Math.floor(m.y / CELL);
-    cells.add(key);
+    cachedCells.add(key);
     if (pt.uncharted) unchartedCells.add(key);
   });
 
   const species = new Set(finds.map(f => f.name.toLowerCase()));
   $('stats').innerHTML = '';
   [[(totalMeters / 1000).toFixed(2) + ' km', 'distance walked'],
-   [cells.size, 'squares explored'],
+   [cachedCells.size, 'squares explored'],
    [unchartedCells.size, 'uncharted squares'],
    [finds.length, 'total finds'],
    [species.size, 'unique species']].forEach(([v, l], i) => {
@@ -569,64 +887,140 @@ async function renderMapAndStats() {
     d.append(b, s); $('stats').appendChild(d);
   });
 
-  const cv = $('map'), g = cv.getContext('2d');
-  const rect = cv.getBoundingClientRect();
-  if (rect.width && rect.height) {
-    const rw = Math.round(rect.width);
-    const rh = Math.round(rect.height);
-    if (cv.width !== rw || cv.height !== rh) {
-      cv.width = rw;
-      cv.height = rh;
+  updateExpeditionHUD(cachedCells.size, unchartedCells.size, finds.length);
+  drawMapCanvas(cachedFinds, cachedCells);
+}
+
+function startMapAnim() {
+  if (mapAnimId) return;
+  function loop(time) {
+    if (!$('view-map').classList.contains('active')) {
+      mapAnimId = null;
+      return;
     }
-  }
-
-  // Clear canvas (leaves map underneath visible if maplibre is active)
-  if (mapInstance) {
-    g.clearRect(0, 0, cv.width, cv.height);
-  } else {
-    g.fillStyle = '#061009'; g.fillRect(0, 0, cv.width, cv.height);
-  }
-
-  if (!track.length) {
-    g.fillStyle = '#92a89a'; g.font = '14px system-ui'; g.textAlign = 'center';
-    g.fillText('Start tracking and walk to reveal the map', cv.width / 2, cv.height / 2);
-    return;
-  }
-  const px = 2 * zoom; // pixels per metre
-  const cx = cv.width / 2, cy = cv.height / 2;
-  const toScreen = m => ({ x: cx + m.x * px, y: cy - m.y * px });
-
-  // Render explored squares
-  cells.forEach(key => {
-    const [i, j] = key.split(',').map(Number);
-    const s = toScreen({ x: i * CELL, y: j * CELL });
-    if (unchartedCells.has(key)) {
-      // Uncharted square: amber tint with border
-      g.fillStyle = 'rgba(245, 158, 11, 0.25)';
-      g.fillRect(s.x, s.y - CELL * px, CELL * px, CELL * px);
-      g.strokeStyle = '#f59e0b';
-      g.lineWidth = 1;
-      g.strokeRect(s.x, s.y - CELL * px, CELL * px, CELL * px);
-    } else {
-      // Standard explored square: lush emerald fog-of-war reveal
-      g.fillStyle = mapInstance ? 'rgba(16, 185, 129, 0.2)' : '#114a27';
-      g.fillRect(s.x, s.y - CELL * px, CELL * px, CELL * px);
+    if (time - lastAnimTime >= 35) { // ~28 fps
+      lastAnimTime = time;
+      drawMapCanvas(cachedFinds, cachedCells);
     }
+    mapAnimId = requestAnimationFrame(loop);
+  }
+  mapAnimId = requestAnimationFrame(loop);
+}
+
+function stopMapAnim() {
+  if (mapAnimId) {
+    cancelAnimationFrame(mapAnimId);
+    mapAnimId = null;
+  }
+}
+
+function initMapInteractions() {
+  const cv = $('map');
+  if (!cv || cv._interactionsInit) return;
+  cv._interactionsInit = true;
+
+  cv.addEventListener('pointerdown', e => {
+    isDragging = true;
+    dragMoved = false;
+    dragDistance = 0;
+    dragStart = { x: e.clientX, y: e.clientY };
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   });
 
-  // Render GPS trail
-  g.strokeStyle = '#10b981'; g.lineWidth = 2.5; g.beginPath();
-  track.forEach((pt, i) => { const s = toScreen(project(pt, origin)); i ? g.lineTo(s.x, s.y) : g.moveTo(s.x, s.y); });
-  g.stroke();
+  cv.addEventListener('pointermove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    dragDistance += Math.hypot(dx, dy);
+    if (dragDistance > 5) {
+      dragMoved = true;
+      cv.classList.add('is-dragging');
+    }
+    panX += dx;
+    panY += dy;
+    dragStart = { x: e.clientX, y: e.clientY };
 
-  // Render finds
-  finds.filter(f => f.lat != null).forEach(f => {
-    const s = toScreen(project(f, origin));
-    g.fillStyle = '#fbbf24'; g.beginPath(); g.arc(s.x, s.y, 6, 0, 7); g.fill();
+    if (mapInstance) {
+      mapInstance.panBy([-dx, -dy], { animate: false });
+    }
+
+    if (panX !== 0 || panY !== 0) {
+      $('recenter-btn')?.classList.add('recenter-active');
+    }
+    drawMapCanvas(cachedFinds, cachedCells);
   });
 
-  // Current user location
-  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx, cy, 6, 0, 7); g.fill();
+  const onPointerEnd = e => {
+    if (!isDragging) return;
+    isDragging = false;
+    cv.classList.remove('is-dragging');
+    try { cv.releasePointerCapture(e.pointerId); } catch (_) {}
+
+    if (!dragMoved && dragDistance <= 5) {
+      const rect = cv.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      let hitPin = null;
+      for (const p of renderedPins) {
+        if (Math.hypot(clickX - p.x, clickY - p.y) <= p.r + 8) {
+          hitPin = p.find;
+          break;
+        }
+      }
+
+      if (hitPin) {
+        activePopupFind = hitPin;
+        $('popup-img').src = hitPin.photo || '';
+        $('popup-name').textContent = hitPin.name;
+        $('popup-badge').textContent = `${ICONS[hitPin.type] || '🌿'} ${hitPin.type.toUpperCase()}`;
+        $('popup-date').textContent = new Date(hitPin.time).toLocaleDateString([], {
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        show('map-pin-popup', true);
+      } else {
+        show('map-pin-popup', false);
+        activePopupFind = null;
+      }
+    }
+  };
+
+  cv.addEventListener('pointerup', onPointerEnd);
+  cv.addEventListener('pointercancel', onPointerEnd);
+
+  // Recenter button
+  const recenterBtn = $('recenter-btn');
+  if (recenterBtn) {
+    recenterBtn.onclick = () => {
+      panX = 0;
+      panY = 0;
+      recenterBtn.classList.remove('recenter-active');
+      const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
+      if (mapInstance && origin.lat !== 0) {
+        mapInstance.panTo([origin.lon, origin.lat], { duration: 300 });
+      }
+      drawMapCanvas(cachedFinds, cachedCells);
+    };
+  }
+
+  // Popup close button
+  const closeBtn = $('popup-close-btn');
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      show('map-pin-popup', false);
+      activePopupFind = null;
+    };
+  }
+
+  // Popup view in Field Guide button
+  const viewBtn = $('popup-view-btn');
+  if (viewBtn) {
+    viewBtn.onclick = () => {
+      if (activePopupFind) {
+        openDetailModal(activePopupFind);
+      }
+    };
+  }
 }
 
 $('zoom-in').onclick = () => {
