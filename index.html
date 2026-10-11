@@ -251,7 +251,7 @@
           <div class="scale-bar-line"></div>
           <span id="scale-label" class="scale-label">100 m</span>
         </div>
-        <div class="map-attribution">© OpenStreetMap contributors · Protomaps</div>
+        <div class="map-attribution" id="map-attribution">© OpenStreetMap contributors · CARTO</div>
 
         <!-- Interactive Map Pin Popup -->
         <div id="map-pin-popup" class="map-pin-popup hidden">
@@ -277,7 +277,7 @@
         <div class="stats" id="stats"></div>
 
         <div class="hint-card">
-          <p class="hint">Dark squares represent unexplored territory. Walk outdoors to reveal fog-of-war. Import a .pmtiles file in Offline Maps to view street vectors locally.</p>
+          <p class="hint">🌿 Outdoor nature map displays forests, parks, trails, and paths. Walk to reveal unexplored fog-of-war territory. Viewed map areas are cached locally for offline field use.</p>
         </div>
 
         <div class="row data-actions">
@@ -299,7 +299,7 @@
         <h3>Offline Vector Maps (PMTiles)</h3>
       </div>
       <p class="consent-desc">
-        WildTrail is 100% private and serverless. To render street vectors beneath your fog-of-war without cellular coverage, import an open <a href="https://protomaps.com" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">PMTiles</a> archive.
+        WildTrail includes a detailed outdoor nature map cached automatically for offline field use. For deep backcountry expeditions without cell coverage, you can also import an open <a href="https://protomaps.com" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">PMTiles</a> vector archive.
       </p>
       <div class="storage-summary">
         <span id="storage-used-text">Storage Used: 0 MB</span>
@@ -307,7 +307,7 @@
       </div>
       <div id="regions-list" class="regions-list"></div>
       <div id="no-regions-msg" class="empty-state">
-        <p>No offline map archives imported yet.<br>Import a .pmtiles archive to render street vectors offline.</p>
+        <p>Using default outdoor nature basemap.<br>Import a .pmtiles archive to load dedicated backcountry vector regions.</p>
       </div>
       <div class="maps-manager-actions">
         <label class="file-import-btn primary full-width" style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">

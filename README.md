@@ -181,7 +181,9 @@ flowchart TD
 <details open>
 <summary><b>🗺️ GPS Territory Exploration</b></summary>
 
-- **Dynamic Fog-of-War:** Dark hexagonal grid uncovers real-world terrain as you walk outdoors.
+- **Detailed Outdoor Nature Basemap:** GPU-rendered outdoor map showcasing forests, nature reserves, green spaces, waterways, and walking paths under the fog-of-war.
+- **Offline Field Caching:** Viewed map tiles are automatically stored in the browser's Service Worker cache for zero-connectivity trail navigation.
+- **Dynamic Fog-of-War:** Uncovers terrain in 20m cells as you physically explore outdoors.
 - **Navigation HUD:** Dynamic vision cone indicating heading, glowing GPS trail, and dynamic scale ruler.
 - **Discovery Pins:** Tap any discovery pin to open specimen details and jump directly to its Field Guide card.
 - **Offline PMTiles Maps (Experimental, in progress):** Import open vector street map archives (PMTiles format) directly into IndexedDB for offline wilderness expeditions.
@@ -196,11 +198,11 @@ flowchart TD
 |:---|:---|:---|
 | **Interface** | HTML5, CSS Variables, Vanilla ES6+ | Zero bundler bloat, ultra-lightweight performance |
 | **Vision AI** | [Transformers.js](https://huggingface.co/docs/transformers.js) · CLIP `clip-vit-base-patch32` | 100% on-device neural image classification |
-| **Interactive Maps** | [MapLibre GL JS](https://maplibre.org/) | GPU-accelerated vector map rendering |
+| **Interactive Maps** | [MapLibre GL JS](https://maplibre.org/) · CARTO Voyager | Detailed outdoor nature basemap with automatic offline tile caching |
 | **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser (experimental, in progress) |
 | **Local Persistence** | IndexedDB | Private storage for finds, coordinates, and offline regions |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage shutter sound |
-| **Installable App** | Service Worker (`wildtrail-v42`) · Web App Manifest | Full offline caching and standalone PWA support |
+| **Installable App** | Service Worker (`wildtrail-v43`) · Web App Manifest | Full offline caching and standalone PWA support |
 | **Hosting & Edge** | [Vercel](https://vercel.com/) | Continuous deployment with zero server maintenance |
 
 ---

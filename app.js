@@ -99,7 +99,12 @@ function showView(name) {
   $('nav').classList.toggle('hidden', name === 'welcome');
   if (name === 'collection') renderCollection();
   if (name === 'map') {
-    if (mapInstance) mapInstance.resize();
+    if (mapInstance) {
+      mapInstance.resize();
+      if (lastPos && panX === 0 && panY === 0) {
+        mapInstance.panTo([lastPos.lon, lastPos.lat], { duration: 0 });
+      }
+    }
     renderMapAndStats();
     checkActiveRegionMap();
     startMapAnim();
@@ -1989,6 +1994,9 @@ async function onPos(p) {
   track.push(pt);
   lastPos = pt;
   await putAll('track', pt);
+  if (mapInstance && panX === 0 && panY === 0) {
+    mapInstance.panTo([pt.lon, pt.lat], { duration: 400 });
+  }
   if ($('view-map').classList.contains('active')) renderMapAndStats();
 }
 
@@ -2650,11 +2658,12 @@ document.addEventListener('keydown', e => {
 
 $('map-fullscreen-btn').onclick = toggleMapFullscreen;
 
-// ---------- Feature A: Offline Vector Map & PMTiles Loader ----------
+// ---------- Feature A: Outdoor Nature Basemap & PMTiles Vector Loader ----------
 let maplibreGL = null;
 let pmtilesLib = null;
 let mapInstance = null;
 let activeProtocol = null;
+let currentMapMode = null; // 'outdoor' or 'pmtiles:<id>'
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -2696,16 +2705,109 @@ async function loadMapLibraries() {
 
 async function checkActiveRegionMap() {
   const regions = await getAll('regions');
-  if (!regions || !regions.length) {
-    if (mapInstance) {
-      mapInstance.remove();
-      mapInstance = null;
-    }
-    return;
+  if (regions && regions.length > 0) {
+    const latest = regions[regions.length - 1];
+    if (currentMapMode === 'pmtiles:' + latest.id && mapInstance) return;
+    await initMapLibreWithRegion(latest);
+  } else {
+    if (currentMapMode === 'outdoor' && mapInstance) return;
+    await initDefaultOutdoorMap();
   }
-  // Initialize with the most recent region
-  const latest = regions[regions.length - 1];
-  initMapLibreWithRegion(latest);
+}
+
+async function initDefaultOutdoorMap() {
+  const libs = await loadMapLibraries();
+  if (!libs) return;
+  const { maplibregl } = libs;
+
+  const container = $('maplibre-container');
+  if (mapInstance) {
+    mapInstance.remove();
+    mapInstance = null;
+    currentMapMode = null;
+  }
+
+  // Determine initial coordinates: live GPS -> latest track -> saved find -> fallback
+  let centerLon = 77.5946;
+  let centerLat = 12.9716;
+  if (lastPos && lastPos.lat && lastPos.lon) {
+    centerLon = lastPos.lon;
+    centerLat = lastPos.lat;
+  } else if (track.length && track[track.length - 1].lat) {
+    centerLon = track[track.length - 1].lon;
+    centerLat = track[track.length - 1].lat;
+  } else {
+    try {
+      const finds = await getAll('finds');
+      const withGps = finds.find(f => f.lat != null && f.lon != null);
+      if (withGps) {
+        centerLon = withGps.lon;
+        centerLat = withGps.lat;
+      }
+    } catch (_) {}
+  }
+
+  const OUTDOOR_MAP_STYLE = {
+    version: 8,
+    sources: {
+      'carto-outdoor': {
+        type: 'raster',
+        tiles: [
+          'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+          'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+          'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+          'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
+        ],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'
+      }
+    },
+    layers: [
+      {
+        id: 'carto-bg',
+        type: 'background',
+        paint: { 'background-color': '#061009' }
+      },
+      {
+        id: 'carto-outdoor-tiles',
+        type: 'raster',
+        source: 'carto-outdoor',
+        minzoom: 0,
+        maxzoom: 19
+      }
+    ]
+  };
+
+  try {
+    mapInstance = new maplibregl.Map({
+      container: container,
+      style: OUTDOOR_MAP_STYLE,
+      center: [centerLon, centerLat],
+      zoom: 15.5,
+      attributionControl: false,
+      interactive: false
+    });
+    currentMapMode = 'outdoor';
+    const attrEl = $('map-attribution');
+    if (attrEl) attrEl.textContent = '© OpenStreetMap contributors · CARTO';
+    mapInstance.on('load', () => renderMapAndStats());
+
+    // If initial position was unset, query GPS to center on user
+    if (!lastPos && navigator.geolocation) {
+      getPosition().then(pos => {
+        if (pos && mapInstance && currentMapMode === 'outdoor' && panX === 0 && panY === 0) {
+          lastPos = pos;
+          mapInstance.panTo([pos.lon, pos.lat], { duration: 400 });
+          renderMapAndStats();
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Outdoor basemap WebGL initialization failed, canvas fallback active:', err);
+    mapInstance = null;
+    currentMapMode = null;
+  }
 }
 
 async function initMapLibreWithRegion(region) {
@@ -2729,6 +2831,7 @@ async function initMapLibreWithRegion(region) {
   if (mapInstance) {
     mapInstance.remove();
     mapInstance = null;
+    currentMapMode = null;
   }
 
   const centerLon = (region.bbox[0] + region.bbox[2]) / 2;
@@ -2758,14 +2861,18 @@ async function initMapLibreWithRegion(region) {
       container: container,
       style: offlineStyle,
       center: [centerLon, centerLat],
-      zoom: 12,
+      zoom: 14,
       attributionControl: false,
       interactive: false // Controlled via WildTrail HUD zoom buttons
     });
+    currentMapMode = 'pmtiles:' + region.id;
+    const attrEl = $('map-attribution');
+    if (attrEl) attrEl.textContent = '© OpenStreetMap contributors · Protomaps';
     mapInstance.on('load', () => renderMapAndStats());
   } catch (err) {
     console.warn('MapLibre WebGL initialization failed, canvas fallback active:', err);
     mapInstance = null;
+    currentMapMode = null;
   }
 }
 
