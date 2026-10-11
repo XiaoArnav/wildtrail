@@ -360,6 +360,10 @@ function openDetailModal(find) {
     : 'No GPS logged';
   $('modal-guessed').textContent = find.guessed ? `AI: ${find.guessed}` : 'Manual entry';
 
+  $('modal-postcard-btn').onclick = () => {
+    openPostcardModal(find);
+  };
+
   $('modal-delete-btn').onclick = async () => {
     if (confirm(`Remove "${find.name}" from your journal?`)) {
       await delOne('finds', find.id);
@@ -375,6 +379,310 @@ $('modal-close-btn').onclick = () => show('detail-modal', false);
 $('detail-modal').onclick = e => {
   if (e.target === $('detail-modal')) show('detail-modal', false);
 };
+
+// ---------- Feature: Vintage Field Postcard & Herbarium Archive Card ----------
+let activePostcardFind = null;
+
+async function openPostcardModal(find) {
+  activePostcardFind = find;
+  show('postcard-modal', true);
+  await renderVintagePostcard(find);
+}
+
+async function renderVintagePostcard(find) {
+  const cv = $('postcard-canvas');
+  if (!cv) return;
+  const g = cv.getContext('2d');
+  cv.width = 800;
+  cv.height = 1000;
+
+  // 1. Soft Warm Parchment Background
+  const bg = g.createRadialGradient(400, 500, 150, 400, 500, 750);
+  bg.addColorStop(0, '#fdfbf4');
+  bg.addColorStop(0.6, '#f6eedb');
+  bg.addColorStop(1, '#e8dbc0');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, 800, 1000);
+
+  // Subtle organic paper patina
+  g.fillStyle = 'rgba(120, 95, 60, 0.035)';
+  for (let i = 0; i < 350; i++) {
+    const rx = (Math.sin(i * 123.45) * 0.5 + 0.5) * 800;
+    const ry = (Math.cos(i * 678.9) * 0.5 + 0.5) * 1000;
+    g.fillRect(rx, ry, (i % 3) + 1, (i % 2) + 1);
+  }
+
+  // 2. Vintage Double Borders & Corner Brackets
+  g.strokeStyle = '#223d2b';
+  g.lineWidth = 2.5;
+  g.strokeRect(32, 32, 736, 936);
+
+  g.strokeStyle = '#8c6d36';
+  g.lineWidth = 1;
+  g.strokeRect(40, 40, 720, 920);
+
+  // Corner flourishes
+  function drawFlourish(cx, cy) {
+    g.save();
+    g.strokeStyle = '#8c6d36';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.arc(cx, cy, 6, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = '#223d2b';
+    g.beginPath();
+    g.arc(cx, cy, 2.5, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+  drawFlourish(40, 40);
+  drawFlourish(760, 40);
+  drawFlourish(40, 960);
+  drawFlourish(760, 960);
+
+  // 3. Top Archival Header
+  g.textAlign = 'center';
+  g.font = 'bold 11px system-ui, sans-serif';
+  g.fillStyle = '#4c5c4f';
+  g.fillText('· HERBARIUM BOTANICUM & WILDLIFE SPECIMEN ARCHIVE ·', 400, 70);
+
+  g.font = 'bold 24px Georgia, serif';
+  g.fillStyle = '#142a1b';
+  g.fillText('WILDTRAIL EXPEDITION JOURNAL', 400, 100);
+
+  const specNum = String(find.id || 1).padStart(4, '0');
+  g.font = '10px monospace';
+  g.fillStyle = '#7a6a4d';
+  g.fillText(`ARCHIVAL NO. WT-${specNum}  ·  TOUCH GRASS 2026`, 400, 118);
+
+  // 4. Central Specimen Photo Mount
+  g.save();
+  g.shadowColor = 'rgba(30, 20, 10, 0.28)';
+  g.shadowBlur = 18;
+  g.shadowOffsetY = 8;
+  g.fillStyle = '#ffffff';
+  g.fillRect(108, 128, 584, 464);
+  g.restore();
+
+  // Load and draw photo
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise(resolve => {
+    img.onload = resolve;
+    img.onerror = resolve;
+    img.src = find.photo;
+  });
+
+  if (img.width && img.height) {
+    g.save();
+    g.beginPath();
+    g.rect(120, 140, 560, 440);
+    g.clip();
+
+    const imgRatio = img.width / img.height;
+    const targetRatio = 560 / 440;
+    let sw, sh, sx, sy;
+    if (imgRatio > targetRatio) {
+      sh = img.height;
+      sw = img.height * targetRatio;
+      sx = (img.width - sw) / 2;
+      sy = 0;
+    } else {
+      sw = img.width;
+      sh = img.width / targetRatio;
+      sx = 0;
+      sy = (img.height - sh) / 2;
+    }
+    g.drawImage(img, sx, sy, sw, sh, 120, 140, 560, 440);
+
+    // Warm vintage patina layer
+    g.fillStyle = 'rgba(235, 215, 175, 0.08)';
+    g.fillRect(120, 140, 560, 440);
+    g.restore();
+  }
+
+  // Antique Photo Corner Mounts
+  function drawPhotoCorner(cx, cy, dirX, dirY) {
+    g.save();
+    g.fillStyle = '#223829';
+    g.beginPath();
+    g.moveTo(cx, cy);
+    g.lineTo(cx + dirX * 18, cy);
+    g.lineTo(cx, cy + dirY * 18);
+    g.closePath();
+    g.fill();
+    g.restore();
+  }
+  drawPhotoCorner(120, 140, 1, 1);
+  drawPhotoCorner(680, 140, -1, 1);
+  drawPhotoCorner(120, 580, 1, -1);
+  drawPhotoCorner(680, 580, -1, -1);
+
+  // 5. Botanical Plaque / Specimen Information Box
+  g.fillStyle = 'rgba(242, 235, 218, 0.9)';
+  g.strokeStyle = '#c5b593';
+  g.lineWidth = 1;
+  g.fillRect(90, 610, 620, 125);
+  g.strokeRect(90, 610, 620, 125);
+
+  g.textAlign = 'center';
+  g.font = 'bold 30px Georgia, serif';
+  g.fillStyle = '#102617';
+  g.fillText(find.name.toUpperCase(), 400, 652);
+
+  const catText = `${ICONS[find.type] || '🌿'} CLASS: ${find.type.toUpperCase()} SPECIMEN`;
+  g.font = 'bold 12px system-ui, sans-serif';
+  g.fillStyle = '#39533f';
+  g.fillText(catText, 400, 680);
+
+  g.font = 'italic 12px Georgia, serif';
+  g.fillStyle = '#685942';
+  g.fillText(find.guessed ? `Field observation verified with AI: ${find.guessed}` : 'Manual Naturalist Observation', 400, 708);
+
+  // 6. Telemetry Details (Left)
+  g.textAlign = 'left';
+  g.font = 'bold 11px system-ui';
+  g.fillStyle = '#3f5745';
+  g.fillText('EXPEDITION TELEMETRY', 85, 765);
+
+  g.font = '12px system-ui';
+  g.fillStyle = '#1f2e24';
+  const coordsText = (find.lat != null && find.lon != null)
+    ? `${find.lat.toFixed(4)}° N, ${find.lon.toFixed(4)}° E`
+    : 'Habitat: Local Natural Zone';
+  g.fillText(`📍 ${coordsText}`, 85, 790);
+
+  const dateStr = new Date(find.time).toLocaleDateString([], { dateStyle: 'long', timeStyle: 'short' });
+  g.fillText(`📅 ${dateStr}`, 85, 814);
+
+  const trainer = (await metaGet('name')) || 'Trail Naturalist';
+  g.fillText(`👤 Observer: ${trainer}`, 85, 838);
+
+  const rankBadge = $('player-rank')?.textContent || 'Scout Lv. 1';
+  g.fillText(`🎖️ Rank: ${rankBadge}`, 85, 862);
+
+  // 7. Vintage Red Postal Rubber Stamp (Center-Right)
+  g.save();
+  g.translate(490, 815);
+  g.rotate(-8 * Math.PI / 180);
+  g.strokeStyle = 'rgba(168, 42, 42, 0.85)';
+  g.fillStyle = 'rgba(168, 42, 42, 0.85)';
+  g.lineWidth = 2;
+  // Outer circle
+  g.beginPath();
+  g.arc(0, 0, 48, 0, Math.PI * 2);
+  g.stroke();
+  // Inner circle
+  g.beginPath();
+  g.arc(0, 0, 42, 0, Math.PI * 2);
+  g.stroke();
+  // Text inside stamp
+  g.textAlign = 'center';
+  g.font = 'bold 8px system-ui';
+  g.fillText('WILDTRAIL EXPEDITION', 0, -22);
+  g.font = 'bold 12px system-ui';
+  const stampDate = new Date(find.time).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+  g.fillText(stampDate, 0, 3);
+  g.font = 'bold 8px system-ui';
+  g.fillText('TOUCH GRASS · FIELD', 0, 26);
+
+  // Wavy postal cancellation lines
+  g.lineWidth = 1.5;
+  [-14, 0, 14].forEach(waveY => {
+    g.beginPath();
+    g.moveTo(56, waveY);
+    g.bezierCurveTo(70, waveY - 5, 85, waveY + 5, 100, waveY);
+    g.bezierCurveTo(115, waveY - 5, 130, waveY + 5, 145, waveY);
+    g.stroke();
+  });
+  g.restore();
+
+  // 8. Embossed Gold Wax Seal (Right)
+  g.save();
+  const sealX = 680, sealY = 820, sealR = 38;
+  const sealGrad = g.createRadialGradient(sealX - 8, sealY - 10, 4, sealX, sealY, sealR);
+  sealGrad.addColorStop(0, '#fef08a');
+  sealGrad.addColorStop(0.35, '#f59e0b');
+  sealGrad.addColorStop(0.8, '#b45309');
+  sealGrad.addColorStop(1, '#78350f');
+  g.fillStyle = sealGrad;
+  g.shadowColor = 'rgba(0, 0, 0, 0.35)';
+  g.shadowBlur = 10;
+  g.shadowOffsetY = 4;
+  g.beginPath();
+  g.arc(sealX, sealY, sealR, 0, Math.PI * 2);
+  g.fill();
+  g.shadowColor = 'transparent';
+
+  // Inner ring
+  g.strokeStyle = 'rgba(254, 240, 138, 0.7)';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.arc(sealX, sealY, sealR - 6, 0, Math.PI * 2);
+  g.stroke();
+
+  // Seal Icon
+  g.font = '22px system-ui';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(ICONS[find.type] || '🌿', sealX, sealY - 2);
+
+  g.font = 'bold 7px system-ui';
+  g.fillStyle = '#451a03';
+  g.fillText('VERIFIED', sealX, sealY + 18);
+  g.restore();
+
+  // 9. Card Footer
+  g.textAlign = 'center';
+  g.font = '9px system-ui, sans-serif';
+  g.fillStyle = '#657367';
+  g.fillText('100% ON-DEVICE & PRIVACY-FIRST  ·  TOUCH GRASS 2026  ·  WILDTRAIL PWA', 400, 942);
+}
+
+async function sharePostcard() {
+  const cv = $('postcard-canvas');
+  if (!cv || !activePostcardFind) return;
+
+  cv.toBlob(async blob => {
+    if (!blob) return;
+    const safeName = activePostcardFind.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    const filename = `wildtrail-${safeName}-${Date.now()}.png`;
+    const file = new File([blob], filename, { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: `${activePostcardFind.name} · WildTrail Specimen Postcard`,
+          text: `Collected in the wild with WildTrail 🌿 (100% on-device & private)`
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          downloadPostcard();
+        }
+      }
+    } else {
+      downloadPostcard();
+    }
+  }, 'image/png');
+}
+
+function downloadPostcard() {
+  const cv = $('postcard-canvas');
+  if (!cv || !activePostcardFind) return;
+  const safeName = activePostcardFind.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+  const link = document.createElement('a');
+  link.download = `wildtrail-${safeName}-${Date.now()}.png`;
+  link.href = cv.toDataURL('image/png');
+  link.click();
+}
+
+$('postcard-close-btn').onclick = () => show('postcard-modal', false);
+$('postcard-modal').onclick = e => {
+  if (e.target === $('postcard-modal')) show('postcard-modal', false);
+};
+$('postcard-share-btn').onclick = sharePostcard;
+$('postcard-download-btn').onclick = downloadPostcard;
 
 // ---------- Location, Distance and Map ----------
 let lastPos = null;

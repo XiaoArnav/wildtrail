@@ -360,8 +360,30 @@
         </div>
       </div>
       <div class="modal-footer">
+        <button id="modal-postcard-btn" class="primary full-width" style="margin-bottom: 8px;">📯 Create Vintage Postcard</button>
         <button id="modal-delete-btn" class="danger-btn full-width">Delete Find</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vintage Field Postcard Export Modal -->
+<div id="postcard-modal" class="modal-backdrop hidden">
+  <div class="modal-sheet postcard-sheet">
+    <button id="postcard-close-btn" class="modal-close" aria-label="Close modal">&times;</button>
+    <div class="postcard-modal-header">
+      <span class="postcard-modal-icon">📯</span>
+      <h3>Vintage Field Postcard</h3>
+      <p class="postcard-modal-sub">Archival herbarium collector print · Generated 100% on-device</p>
+    </div>
+    
+    <div class="postcard-preview-container">
+      <canvas id="postcard-canvas" width="800" height="1000"></canvas>
+    </div>
+
+    <div class="postcard-modal-actions">
+      <button id="postcard-share-btn" class="primary full-width">📲 Share Postcard (Stories / WhatsApp)</button>
+      <button id="postcard-download-btn" class="glass-btn full-width">💾 Save High-Res Card (.PNG)</button>
     </div>
   </div>
 </div>

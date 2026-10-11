@@ -1831,6 +1831,87 @@ nav {
   }
 }
 
+/* Vintage Field Postcard Export Modal */
+.postcard-sheet {
+  max-width: 480px !important;
+  max-height: 92vh;
+  overflow-y: auto;
+  background: rgba(10, 22, 15, 0.96) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.9), 0 0 30px rgba(245, 158, 11, 0.15) !important;
+}
+
+.postcard-modal-header {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.postcard-modal-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.postcard-modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.2px;
+  margin-bottom: 2px;
+}
+
+.postcard-modal-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.postcard-preview-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 16px;
+  max-height: 480px;
+  overflow: hidden;
+}
+
+canvas#postcard-canvas {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  border-radius: 6px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 12px rgba(245, 158, 11, 0.2);
+  display: block;
+}
+
+.postcard-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#modal-postcard-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 50%, #d97706 100%);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3), 0 0 12px rgba(245, 158, 11, 0.2);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#modal-postcard-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4), 0 0 20px rgba(245, 158, 11, 0.35);
+}
+
+#modal-postcard-btn:active {
+  transform: translateY(0);
+}
+
 @keyframes modalPop {
   from { opacity: 0; transform: scale(0.96) translateY(12px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
