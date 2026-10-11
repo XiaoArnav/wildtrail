@@ -277,16 +277,28 @@ let zoomStartLevel = 1.0;
 let zoomTotalMoved = 0;
 let lastHapticStep = 1.0;
 
+function isCameraMirrored() {
+  if (currentFacingMode === 'user') return true;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!isMobile) return true; // Desktop and laptop webcams are front-facing mirrors
+  const label = (currentVideoTrack?.label || '').toLowerCase();
+  if (label.includes('front') || label.includes('facetime') || label.includes('selfie') || label.includes('user') || label.includes('integrated')) {
+    return true;
+  }
+  return false;
+}
+
 function applyVideoTransform() {
   const v = $('video');
   if (!v) return;
 
-  if (currentCameraZoom === 1.0) {
-    v.style.transform = 'none';
-  } else {
-    v.style.transform = `scale(${currentCameraZoom})`;
-    v.style.transformOrigin = 'center center';
-  }
+  const mirrored = isCameraMirrored();
+  const mirrorPart = mirrored ? 'scaleX(-1)' : 'scaleX(1)';
+  const zoomPart = currentCameraZoom !== 1.0 ? `scale(${currentCameraZoom})` : '';
+  const transform = `${mirrorPart} ${zoomPart}`.trim();
+
+  v.style.transform = transform;
+  v.style.transformOrigin = 'center center';
 }
 
 async function applyContinuousAutofocus(track) {
@@ -1042,7 +1054,8 @@ $('snap-btn').onclick = async () => {
   // 3. High-Resolution Sensor Capture
   let fullPhotoUrl = null;
 
-  if ('ImageCapture' in window && currentVideoTrack && currentFacingMode !== 'user') {
+  const mirrored = isCameraMirrored();
+  if ('ImageCapture' in window && currentVideoTrack && !mirrored) {
     try {
       const capture = new ImageCapture(currentVideoTrack);
       const blob = await capture.takePhoto();
@@ -1070,10 +1083,10 @@ $('snap-btn').onclick = async () => {
     c.height = h;
     const ctx = c.getContext('2d');
 
-    if (currentCameraZoom !== 1.0 && v.style.transform && v.style.transform !== 'none') {
+    if (mirrored || currentCameraZoom !== 1.0) {
       ctx.save();
       ctx.translate(c.width / 2, c.height / 2);
-      ctx.scale(currentCameraZoom, currentCameraZoom);
+      ctx.scale(mirrored ? -currentCameraZoom : currentCameraZoom, currentCameraZoom);
       ctx.translate(-c.width / 2, -c.height / 2);
       ctx.drawImage(v, 0, 0, c.width, c.height);
       ctx.restore();
@@ -1092,7 +1105,16 @@ $('snap-btn').onclick = async () => {
   const sx = ((v.videoWidth || 256) - minDim) / 2;
   const sy = ((v.videoHeight || 256) - minDim) / 2;
 
-  thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
+  if (mirrored) {
+    thumbCtx.save();
+    thumbCtx.translate(128, 128);
+    thumbCtx.scale(-1, 1);
+    thumbCtx.translate(-128, -128);
+    thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
+    thumbCtx.restore();
+  } else {
+    thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
+  }
   const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.85);
 
   pending = { photo: fullPhotoUrl, guesses: [] };

@@ -200,7 +200,7 @@ flowchart TD
 | **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser (experimental, in progress) |
 | **Local Persistence** | IndexedDB | Private storage for finds, coordinates, and offline regions |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage shutter sound |
-| **Installable App** | Service Worker (`wildtrail-v40`) · Web App Manifest | Full offline caching and standalone PWA support |
+| **Installable App** | Service Worker (`wildtrail-v41`) · Web App Manifest | Full offline caching and standalone PWA support |
 | **Hosting & Edge** | [Vercel](https://vercel.com/) | Continuous deployment with zero server maintenance |
 
 ---
