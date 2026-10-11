@@ -91,6 +91,35 @@ const clearAll = async () => {
 // ---------- DOM helpers ----------
 const $ = id => document.getElementById(id);
 const show = (id, on = true) => $(id).classList.toggle('hidden', !on);
+const HIGH_CONTRAST_KEY = 'wildtrail_high_contrast';
+const THEME_COLOR_DEFAULT = '#070e0a';
+const THEME_COLOR_HIGH_CONTRAST = '#102819';
+
+function applyHighContrast(enabled) {
+  document.body.classList.toggle('high-contrast', enabled);
+  const btn = $('contrast-toggle');
+  if (btn) btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.setAttribute('content', enabled ? THEME_COLOR_HIGH_CONTRAST : THEME_COLOR_DEFAULT);
+}
+
+function initHighContrastToggle() {
+  let enabled = false;
+  try {
+    enabled = localStorage.getItem(HIGH_CONTRAST_KEY) === '1';
+  } catch (_) {}
+  applyHighContrast(enabled);
+
+  const btn = $('contrast-toggle');
+  if (!btn) return;
+  btn.onclick = () => {
+    const next = !document.body.classList.contains('high-contrast');
+    applyHighContrast(next);
+    try {
+      localStorage.setItem(HIGH_CONTRAST_KEY, next ? '1' : '0');
+    } catch (_) {}
+  };
+}
 
 // ---------- Navigation ----------
 function showView(name) {
@@ -130,6 +159,7 @@ async function updateTrainerChip() {
 }
 
 async function boot() {
+  initHighContrastToggle();
   initCompass();
   initMapInteractions();
   init3DCardPhysics();
@@ -2127,6 +2157,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   const cv = $('map');
   if (!cv) return;
   const g = cv.getContext('2d');
+  const highContrast = document.body.classList.contains('high-contrast');
   const rect = cv.getBoundingClientRect();
   if (rect.width && rect.height) {
     const rw = Math.round(rect.width);
@@ -2173,10 +2204,10 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   if (mapBearingDeg !== 0) {
     g.rotate(mapBearingDeg * Math.PI / 180);
   }
-  g.strokeStyle = 'rgba(52, 211, 153, 0.08)';
+  g.strokeStyle = highContrast ? 'rgba(167, 243, 208, 0.28)' : 'rgba(52, 211, 153, 0.08)';
   g.lineWidth = 1;
   g.font = '9px monospace';
-  g.fillStyle = 'rgba(52, 211, 153, 0.4)';
+  g.fillStyle = highContrast ? 'rgba(236, 253, 245, 0.86)' : 'rgba(52, 211, 153, 0.4)';
 
   for (let mx = minM; mx <= maxM; mx += gridStepMeters) {
     const sx = mx * px;
@@ -2338,8 +2369,8 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
     playerScreenPos.x, playerScreenPos.y, 4,
     playerScreenPos.x, playerScreenPos.y, coneRadius
   );
-  coneGrad.addColorStop(0, 'rgba(52, 211, 153, 0.45)');
-  coneGrad.addColorStop(0.45, 'rgba(52, 211, 153, 0.16)');
+  coneGrad.addColorStop(0, highContrast ? 'rgba(167, 243, 208, 0.62)' : 'rgba(52, 211, 153, 0.45)');
+  coneGrad.addColorStop(0.45, highContrast ? 'rgba(167, 243, 208, 0.3)' : 'rgba(52, 211, 153, 0.16)');
   coneGrad.addColorStop(1, 'rgba(52, 211, 153, 0.0)');
 
   g.save();
