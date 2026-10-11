@@ -391,9 +391,17 @@ video {
 .focus-box {
   position: absolute;
   inset: 0;
-  border: 2px solid #ffd60a;
+  border: 2px solid #10b981; /* Emerald Green theme */
+  border-radius: 6px;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.85), inset 0 0 6px rgba(16, 185, 129, 0.3);
+}
+
+.focus-box::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px dashed rgba(251, 191, 36, 0.7); /* Golden amber inner bracket */
   border-radius: 4px;
-  box-shadow: 0 0 10px rgba(255, 214, 10, 0.6);
 }
 
 .focus-sun {
@@ -402,8 +410,9 @@ video {
   top: 50%;
   transform: translateY(-50%);
   font-size: 14px;
+  color: #fbbf24; /* Warm golden amber */
   line-height: 1;
-  filter: drop-shadow(0 0 4px rgba(255, 214, 10, 0.8));
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.9));
 }
 
 @keyframes focusPulse {
@@ -508,51 +517,149 @@ video {
   100% { opacity: 1; }
 }
 
-/* iPhone Lens Zoom Switcher (.5, 1x, 2x) */
-.lens-zoom-switcher {
+/* iPhone Fluid Zoom Scroller & Badge */
+.camera-zoom-container {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 3px 6px;
-  border-radius: 999px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  pointer-events: auto;
   align-self: center;
-  margin-bottom: 4px;
+  gap: 6px;
+  pointer-events: auto;
+  z-index: 8;
+  margin-bottom: 2px;
+  user-select: none;
 }
 
-.zoom-pill {
-  width: 30px;
-  height: 30px;
+.zoom-badge-btn {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.75);
+  background: rgba(0, 0, 0, 0.72);
+  border: 2px solid #10b981; /* Emerald green theme */
+  color: #10b981;
+  font-family: system-ui, -apple-system, sans-serif;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 12px rgba(16, 185, 129, 0.4);
+  transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
 }
 
-.zoom-pill:active {
-  transform: scale(0.9);
+.zoom-badge-btn:active {
+  transform: scale(0.92);
 }
 
-.zoom-pill.on {
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffd60a;
-  font-size: 13px;
-  box-shadow: 0 0 8px rgba(255, 214, 10, 0.4);
-  transform: scale(1.08);
+.zoom-badge-btn.zoomed {
+  border-color: #fbbf24;
+  color: #fbbf24;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.6);
+}
+
+.zoom-dial-slider-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(78vw, 240px);
+  background: rgba(4, 18, 11, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 20px;
+  padding: 6px 14px 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
+  animation: zoomDialFadeIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.zoom-dial-slider-wrap.hidden {
+  display: none;
+}
+
+@keyframes zoomDialFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.zoom-dial-ruler {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 4px;
+  margin-bottom: 4px;
+}
+
+.zoom-dial-mark {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  font-weight: 800;
+  font-family: monospace;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.zoom-dial-mark:hover, .zoom-dial-mark.active {
+  color: #10b981;
+  transform: scale(1.15);
+}
+
+.zoom-dial-dot {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.zoom-slider-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  outline: none;
+  cursor: pointer;
+  margin: 4px 0 2px;
+}
+
+.zoom-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.85);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.zoom-slider-input::-webkit-slider-thumb:active {
+  transform: scale(1.25);
+  background: #fbbf24;
+}
+
+.zoom-slider-input::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.85);
+  cursor: pointer;
 }
 
 /* Controls Bar */

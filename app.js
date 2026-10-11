@@ -137,8 +137,75 @@ $('start-btn').onclick = async () => {
   loadTrack();
 };
 
-// ---------- Retro Field Audio Engine (Web Audio API) ----------
+// ---------- Retro Field Audio Engine (HTML5 PCM WAV + Web Audio API) ----------
 let audioCtx = null;
+let shutterAudio = null;
+
+function createShutterWavUrl() {
+  const sampleRate = 22050;
+  const duration = 0.14;
+  const numSamples = Math.floor(sampleRate * duration);
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+  const writeStr = (offset, s) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeStr(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, 1, true); // Mono channel
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true); // 16-bit
+  writeStr(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+
+  const addClick = (startTime, freq, amp) => {
+    const startIdx = Math.floor(startTime * sampleRate);
+    const burstLen = Math.floor(sampleRate * 0.028);
+    for (let i = 0; i < burstLen; i++) {
+      const idx = startIdx + i;
+      if (idx >= numSamples) break;
+      const t = i / sampleRate;
+      const env = Math.exp(-i / (sampleRate * 0.004));
+      const noise = (Math.random() * 2 - 1) * 0.8;
+      const tone = Math.sin(2 * Math.PI * freq * t) * 0.6 + Math.sin(2 * Math.PI * (freq * 1.55) * t) * 0.4;
+      const s = Math.max(-1, Math.min(1, (noise + tone) * env * amp));
+      const cur = view.getInt16(44 + idx * 2, true);
+      const combined = Math.max(-32768, Math.min(32767, cur + Math.floor(s * 32767)));
+      view.setInt16(44 + idx * 2, combined, true);
+    }
+  };
+  // Mechanical double-click (blade opening at 3ms, blade closing at 55ms)
+  addClick(0.003, 2800, 0.95);
+  addClick(0.055, 1900, 1.0);
+
+  const blob = new Blob([buffer], { type: 'audio/wav' });
+  return URL.createObjectURL(blob);
+}
+
+function warmUpAudio() {
+  if (!shutterAudio) {
+    try {
+      shutterAudio = new Audio(createShutterWavUrl());
+      shutterAudio.volume = 1.0;
+      shutterAudio.preload = 'auto';
+    } catch (_) {}
+  }
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) audioCtx = new AudioContextClass();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+}
+
+// Warm up audio on first user touch anywhere to bypass mobile browser silent policies
+window.addEventListener('pointerdown', warmUpAudio, { once: true });
+window.addEventListener('touchstart', warmUpAudio, { once: true });
+
 function getAudioContext() {
   if (!audioCtx) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -151,52 +218,36 @@ function getAudioContext() {
 }
 
 function playShutterSound() {
+  warmUpAudio();
+  // 1. Play dedicated HTML5 audio element for instant mechanical click
+  try {
+    if (shutterAudio) {
+      shutterAudio.currentTime = 0;
+      const p = shutterAudio.play();
+      if (p && p.catch) p.catch(() => {});
+    }
+  } catch (_) {}
+
+  // 2. Play Web Audio synth as redundant backup
   try {
     const ctx = getAudioContext();
-    if (!ctx) return;
-    const t = ctx.currentTime;
-
-    // Helper for crisp mechanical camera shutter click
-    const createClick = (startTime, freq) => {
-      const bufferSize = Math.floor(ctx.sampleRate * 0.02);
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
-      }
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'highpass';
-      filter.frequency.setValueAtTime(freq, startTime);
-
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.4, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.025);
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      noise.start(startTime);
-
-      // Metallic blade resonance
-      const osc = ctx.createOscillator();
-      const oscGain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq * 0.75, startTime);
-      oscGain.gain.setValueAtTime(0.2, startTime);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.018);
-      osc.connect(oscGain);
-      oscGain.connect(ctx.destination);
-      osc.start(startTime);
-      osc.stop(startTime + 0.02);
-    };
-
-    // Shutter blade opening click
-    createClick(t, 2600);
-    // Shutter blade closing click 45ms later
-    createClick(t + 0.045, 1800);
+    if (ctx && ctx.state === 'running') {
+      const t = ctx.currentTime;
+      const createClick = (startTime, freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.45, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.025);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.03);
+      };
+      createClick(t, 2800);
+      createClick(t + 0.05, 1900);
+    }
   } catch (_) {}
 }
 
@@ -205,7 +256,6 @@ function playDiscoveryChime() {
     const ctx = getAudioContext();
     if (!ctx) return;
     const t = ctx.currentTime;
-    // Nostalgic nature discovery arpeggio (C5 - E5 - G5 - C6)
     [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -222,21 +272,79 @@ function playDiscoveryChime() {
   } catch (_) {}
 }
 
-// ---------- Camera (iPhone High-Resolution + Native Sensor Controls) ----------
+// ---------- Camera (iPhone High-Resolution + Fluid Zoom Controls) ----------
 let stream = null;
 let currentVideoTrack = null;
 let isTorchOn = false;
-let currentCameraZoom = 1;
+let currentCameraZoom = 1.0;
 let focusReticleTimer = null;
+let zoomDialHideTimer = null;
+let isCameraPinching = false;
+let touchStartPinchDist = 0;
+let touchStartCameraZoom = 1.0;
+let lastPinchTime = 0;
+
+function showZoomDialTemporarily() {
+  const wrap = $('zoom-dial-slider-wrap');
+  if (!wrap) return;
+  wrap.classList.remove('hidden');
+  clearTimeout(zoomDialHideTimer);
+  zoomDialHideTimer = setTimeout(() => {
+    wrap.classList.add('hidden');
+  }, 3200);
+}
+
+function setCameraZoom(z, syncSlider = true) {
+  // Always strictly clamped between 1.0x and 5.0x so video ALWAYS fills viewfinder (zero black bars!)
+  const clamped = Math.min(5.0, Math.max(1.0, Math.round(z * 10) / 10));
+  currentCameraZoom = clamped;
+
+  const v = $('video');
+  if (v) {
+    v.style.transform = clamped === 1.0 ? 'none' : `scale(${clamped})`;
+    v.style.transformOrigin = 'center center';
+  }
+
+  if ($('zoom-badge-val')) {
+    $('zoom-badge-val').textContent = clamped.toFixed(1) + 'x';
+  }
+  if ($('zoom-badge-btn')) {
+    $('zoom-badge-btn').classList.toggle('zoomed', clamped > 1.05);
+  }
+  if (syncSlider && $('zoom-slider')) {
+    $('zoom-slider').value = clamped;
+  }
+
+  document.querySelectorAll('.zoom-dial-mark').forEach(btn => {
+    const val = parseFloat(btn.dataset.val);
+    btn.classList.toggle('active', Math.abs(val - clamped) < 0.15);
+  });
+
+  // Try applying hardware optical/digital zoom if camera sensor supports it
+  if (currentVideoTrack) {
+    const caps = currentVideoTrack.getCapabilities ? currentVideoTrack.getCapabilities() : {};
+    if (caps && caps.zoom) {
+      try {
+        const hwZ = Math.max(caps.zoom.min, Math.min(caps.zoom.max, clamped));
+        currentVideoTrack.applyConstraints({ advanced: [{ zoom: hwZ }] }).catch(() => {});
+      } catch (_) {}
+    }
+  }
+}
 
 function initCameraControls() {
   const v = $('video');
+  const camBox = document.querySelector('.camera');
   if (!v || v._cameraControlsInit) return;
   v._cameraControlsInit = true;
 
-  // 1. iPhone Yellow Tap-to-Focus Reticle
+  // 1. Botanical Emerald & Gold Tap-to-Focus Reticle
   v.addEventListener('click', async e => {
     if (!stream) return;
+    // Prevent focus trigger if user was just pinching or clicking controls
+    if (Date.now() - lastPinchTime < 350) return;
+    if (e.target.closest('#camera-zoom-container') || e.target.closest('.viewfinder-top-bar')) return;
+
     const rect = v.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -256,7 +364,7 @@ function initCameraControls() {
             await currentVideoTrack.applyConstraints({
               advanced: [{ pointsOfInterest: [{ x: x / rect.width, y: y / rect.height }] }]
             });
-          } catch (err) {}
+          } catch (_) {}
         }
       }
 
@@ -268,7 +376,90 @@ function initCameraControls() {
     }
   });
 
-  // 2. Hardware Torch / Flashlight Toggle
+  // 2. Laptop & Desktop Mouse Wheel / Trackpad Scroller Zoom
+  if (camBox) {
+    camBox.addEventListener('wheel', e => {
+      if (!stream) return;
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.2 : -0.2;
+      setCameraZoom(currentCameraZoom + delta);
+      showZoomDialTemporarily();
+      if ('vibrate' in navigator) navigator.vibrate(10);
+    }, { passive: false });
+
+    // 3. Mobile Two-Finger Pinch-to-Zoom
+    camBox.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        isCameraPinching = true;
+        lastPinchTime = Date.now();
+        touchStartPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        touchStartCameraZoom = currentCameraZoom;
+        showZoomDialTemporarily();
+      }
+    }, { passive: false });
+
+    camBox.addEventListener('touchmove', e => {
+      if (isCameraPinching && e.touches.length === 2) {
+        e.preventDefault();
+        lastPinchTime = Date.now();
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (touchStartPinchDist > 8) {
+          const factor = currentDist / touchStartPinchDist;
+          setCameraZoom(touchStartCameraZoom * factor);
+        }
+      }
+    }, { passive: false });
+
+    camBox.addEventListener('touchend', e => {
+      if (e.touches.length < 2) {
+        isCameraPinching = false;
+      }
+    });
+  }
+
+  // 4. iPhone Zoom Badge Button (Tap toggles 1.0x <-> 2.0x, click reveals slider)
+  if ($('zoom-badge-btn')) {
+    $('zoom-badge-btn').onclick = e => {
+      e.stopPropagation();
+      warmUpAudio();
+      if ('vibrate' in navigator) navigator.vibrate(15);
+      if (currentCameraZoom > 1.1) {
+        setCameraZoom(1.0);
+      } else {
+        setCameraZoom(2.0);
+      }
+      showZoomDialTemporarily();
+    };
+  }
+
+  // 5. iPhone Zoom Slider Input
+  if ($('zoom-slider')) {
+    $('zoom-slider').oninput = e => {
+      setCameraZoom(parseFloat(e.target.value), false);
+      showZoomDialTemporarily();
+    };
+  }
+
+  // 6. iPhone Zoom Ruler Marks (1x, 2x, 3x, 5x)
+  document.querySelectorAll('.zoom-dial-mark').forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      warmUpAudio();
+      const targetVal = parseFloat(btn.dataset.val);
+      setCameraZoom(targetVal);
+      showZoomDialTemporarily();
+      if ('vibrate' in navigator) navigator.vibrate(15);
+    };
+  });
+
+  // 7. Hardware Torch / Flashlight Toggle
   if ($('torch-btn')) {
     $('torch-btn').onclick = async e => {
       e.stopPropagation();
@@ -284,39 +475,7 @@ function initCameraControls() {
     };
   }
 
-  // 3. iPhone Lens Zoom Switcher (.5, 1x, 2x)
-  document.querySelectorAll('.zoom-pill').forEach(btn => {
-    btn.onclick = async e => {
-      e.stopPropagation();
-      const z = parseFloat(btn.dataset.z);
-      document.querySelectorAll('.zoom-pill').forEach(b => b.classList.remove('on'));
-      btn.classList.add('on');
-      currentCameraZoom = z;
-
-      if ('vibrate' in navigator) navigator.vibrate(20);
-
-      let hardwareApplied = false;
-      if (currentVideoTrack) {
-        const caps = currentVideoTrack.getCapabilities ? currentVideoTrack.getCapabilities() : {};
-        if (caps && caps.zoom) {
-          try {
-            const clamped = Math.max(caps.zoom.min, Math.min(caps.zoom.max, z));
-            await currentVideoTrack.applyConstraints({ advanced: [{ zoom: clamped }] });
-            hardwareApplied = true;
-          } catch (err) {}
-        }
-      }
-
-      if (hardwareApplied) {
-        v.style.transform = 'none';
-      } else {
-        v.style.transform = z === 1 ? 'none' : `scale(${z})`;
-        v.style.transition = 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)';
-      }
-    };
-  });
-
-  // 4. Native 48MP iPhone Camera File Picker Ingestion
+  // 8. Native 48MP iPhone Camera File Picker Ingestion
   if ($('native-cam-input')) {
     $('native-cam-input').onchange = async e => {
       const file = e.target.files?.[0];
