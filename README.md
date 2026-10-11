@@ -181,14 +181,13 @@ flowchart TD
 <details open>
 <summary><b>🗺️ GPS Territory Exploration</b></summary>
 
-- **Detailed Outdoor Nature Basemap:** GPU-rendered outdoor map showcasing forests, nature reserves, green spaces, waterways, and walking paths under the fog-of-war.
+- **Default Online Vector Map (OpenFreeMap):** GPU-accelerated online vector basemap powered by MapLibre GL JS and OpenFreeMap Liberty style (`https://tiles.openfreemap.org/styles/liberty`), showcasing forests, nature reserves, green spaces, waterways, and walking paths under the fog-of-war with zero API keys or user signups.
 - **Dynamic Compass & Flashlight Beam:** Google Maps-style field of view beam that rotates dynamically in real-time with device compass orientation and GPS movement.
 - **Two-Finger Map Rotation:** Smooth multi-touch gesture to rotate the map bearing, with an interactive compass HUD button to snap back to North-up.
-- **Offline Field Caching:** Viewed map tiles are automatically stored in the browser's Service Worker cache for zero-connectivity trail navigation.
 - **Dynamic Fog-of-War:** Uncovers terrain in 20m cells as you physically explore outdoors.
-- **Navigation HUD:** Vision cone indicating heading, glowing GPS trail, and dynamic scale ruler.
+- **Navigation HUD:** Vision cone indicating heading, glowing GPS trail, dynamic scale ruler, and active map source indicator badge.
 - **Discovery Pins:** Tap any discovery pin to open specimen details and jump directly to its Field Guide card.
-- **Offline PMTiles Maps (Experimental, in progress):** Import open vector street map archives (PMTiles format) directly into IndexedDB for offline wilderness expeditions.
+- **Offline Vector Maps (PMTiles):** Full offline vector and raster mapping powered by local `.pmtiles` archives stored in browser IndexedDB. Features storage quota management, archive inspection, bounds warning, and zero-network map rendering.
 
 </details>
 
@@ -200,11 +199,11 @@ flowchart TD
 |:---|:---|:---|
 | **Interface** | HTML5, CSS Variables, Vanilla ES6+ | Zero bundler bloat, ultra-lightweight performance |
 | **Vision AI** | [Transformers.js](https://huggingface.co/docs/transformers.js) · CLIP `clip-vit-base-patch32` | 100% on-device neural image classification |
-| **Interactive Maps** | [MapLibre GL JS](https://maplibre.org/) · CARTO Voyager | Detailed outdoor nature basemap with automatic offline tile caching |
-| **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser (experimental, in progress) |
+| **Interactive Maps** | [MapLibre GL JS](https://maplibre.org/) · [OpenFreeMap](https://openfreemap.org/) | Online vector basemap with zero API key dependencies |
+| **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Local `.pmtiles` archives persisted in IndexedDB for backcountry use |
 | **Local Persistence** | IndexedDB | Private storage for finds, coordinates, and offline regions |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage shutter sound |
-| **Installable App** | Service Worker (`wildtrail-v44`) · Web App Manifest | Full offline caching and standalone PWA support |
+| **Installable App** | Service Worker (`wildtrail-v45`) · Web App Manifest | Full offline caching and standalone PWA support |
 | **Hosting & Edge** | [Vercel](https://vercel.com/) | Continuous deployment with zero server maintenance |
 
 ---

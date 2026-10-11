@@ -2849,12 +2849,71 @@ document.addEventListener('keydown', e => {
 
 $('map-fullscreen-btn').onclick = toggleMapFullscreen;
 
-// ---------- Feature A: Outdoor Nature Basemap & PMTiles Vector Loader ----------
+// ---------- Feature A: OpenFreeMap Online Vector Map & PMTiles Offline Vector Engine ----------
+const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+const OPENFREEMAP_ATTR = 'Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · Style by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>';
+
 let maplibreGL = null;
 let pmtilesLib = null;
 let mapInstance = null;
 let activeProtocol = null;
-let currentMapMode = null; // 'outdoor' or 'pmtiles:<id>'
+let currentMapMode = null; // 'online' or 'pmtiles:<id>'
+let activeRegion = null;   // Active PMTiles archive object or null
+
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[m]);
+}
+
+function updateSourceBadge(text, type = 'online') {
+  const badge = $('map-source-badge');
+  const dot = badge ? badge.querySelector('.source-status-dot') : null;
+  const label = $('map-source-text');
+  if (dot) {
+    dot.className = 'source-status-dot ' + (type === 'offline' ? 'offline' : 'online');
+  }
+  if (label) {
+    label.textContent = text;
+  }
+}
+
+function setModalStatus(text, badgeClass = 'badge-ready') {
+  const badge = $('modal-status-badge');
+  if (badge) {
+    badge.textContent = text;
+    badge.className = 'status-badge ' + badgeClass;
+  }
+}
+
+function updateActiveSourcePanel() {
+  const label = $('active-source-label');
+  const onlineBtn = $('activate-online-btn');
+  if (activeRegion) {
+    if (label) label.textContent = `📦 ${activeRegion.name} (${activeRegion.tileTypeLabel || 'Offline Vector'})`;
+    if (onlineBtn) onlineBtn.classList.remove('hidden');
+  } else {
+    if (label) label.textContent = '🌐 OpenFreeMap Liberty (Online Vector)';
+    if (onlineBtn) onlineBtn.classList.add('hidden');
+  }
+}
+
+function checkBoundsCoverage() {
+  const banner = $('map-bounds-banner');
+  if (!banner) return;
+  if (!activeRegion || !mapInstance) {
+    banner.classList.add('hidden');
+    return;
+  }
+  try {
+    const c = mapInstance.getCenter();
+    const b = activeRegion.bbox;
+    const isOut = (c.lng < b[0] || c.lat < b[1] || c.lng > b[2] || c.lat > b[3]);
+    banner.classList.toggle('hidden', !isOut);
+  } catch (_) {
+    banner.classList.add('hidden');
+  }
+}
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -2889,24 +2948,26 @@ async function loadMapLibraries() {
     pmtilesLib = window.pmtiles;
     return { maplibregl: maplibreGL, pmtiles: pmtilesLib };
   } catch (err) {
-    console.warn('MapLibre/PMTiles failed to load offline assets, keeping canvas fallback:', err);
+    console.warn('MapLibre/PMTiles failed to load assets, keeping canvas fallback:', err);
     return null;
   }
 }
 
 async function checkActiveRegionMap() {
-  const regions = await getAll('regions');
-  if (regions && regions.length > 0) {
-    const latest = regions[regions.length - 1];
-    if (currentMapMode === 'pmtiles:' + latest.id && mapInstance) return;
-    await initMapLibreWithRegion(latest);
-  } else {
-    if (currentMapMode === 'outdoor' && mapInstance) return;
-    await initDefaultOutdoorMap();
+  const savedPref = await metaGet('active_map_region');
+  if (savedPref && savedPref !== 'online') {
+    const reg = await getOne('regions', savedPref);
+    if (reg) {
+      if (currentMapMode === 'pmtiles:' + reg.id && mapInstance) return;
+      await initMapLibreWithRegion(reg);
+      return;
+    }
   }
+  if (currentMapMode === 'online' && mapInstance) return;
+  await initDefaultOnlineMap();
 }
 
-async function initDefaultOutdoorMap() {
+async function initDefaultOnlineMap() {
   const libs = await loadMapLibraries();
   if (!libs) return;
   const { maplibregl } = libs;
@@ -2917,6 +2978,7 @@ async function initDefaultOutdoorMap() {
     mapInstance = null;
     currentMapMode = null;
   }
+  activeRegion = null;
 
   // Determine initial coordinates: live GPS -> latest track -> saved find -> fallback
   let centerLon = 77.5946;
@@ -2938,57 +3000,40 @@ async function initDefaultOutdoorMap() {
     } catch (_) {}
   }
 
-  const OUTDOOR_MAP_STYLE = {
-    version: 8,
-    sources: {
-      'carto-outdoor': {
-        type: 'raster',
-        tiles: [
-          'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-          'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-          'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-          'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
-        ],
-        tileSize: 256,
-        maxzoom: 19,
-        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'
-      }
-    },
-    layers: [
-      {
-        id: 'carto-bg',
-        type: 'background',
-        paint: { 'background-color': '#061009' }
-      },
-      {
-        id: 'carto-outdoor-tiles',
-        type: 'raster',
-        source: 'carto-outdoor',
-        minzoom: 0,
-        maxzoom: 19
-      }
-    ]
-  };
-
   try {
     mapInstance = new maplibregl.Map({
       container: container,
-      style: OUTDOOR_MAP_STYLE,
+      style: OPENFREEMAP_STYLE,
       center: [centerLon, centerLat],
       zoom: 15.5,
       bearing: mapBearingDeg,
       attributionControl: false,
       interactive: false
     });
-    currentMapMode = 'outdoor';
+    currentMapMode = 'online';
+
     const attrEl = $('map-attribution');
-    if (attrEl) attrEl.textContent = '© OpenStreetMap contributors · CARTO';
+    if (attrEl) attrEl.innerHTML = OPENFREEMAP_ATTR;
+
+    updateSourceBadge('🌐 Online · OpenFreeMap', 'online');
+    setModalStatus('Ready', 'badge-ready');
+    updateActiveSourcePanel();
+    checkBoundsCoverage();
+
     mapInstance.on('load', () => renderMapAndStats());
 
-    // If initial position was unset, query GPS to center on user
+    mapInstance.on('error', err => {
+      console.warn('OpenFreeMap tile/style error:', err);
+      if (!navigator.onLine) {
+        updateSourceBadge('🌐 Basemap Offline (No Network)', 'online');
+        setModalStatus('Not available (Offline)', 'badge-error');
+      }
+    });
+
+    // Center map if GPS arrives after initialization
     if (!lastPos && navigator.geolocation) {
       getPosition().then(pos => {
-        if (pos && mapInstance && currentMapMode === 'outdoor' && panX === 0 && panY === 0) {
+        if (pos && mapInstance && currentMapMode === 'online' && panX === 0 && panY === 0) {
           lastPos = pos;
           mapInstance.panTo([pos.lon, pos.lat], { duration: 400 });
           renderMapAndStats();
@@ -2996,7 +3041,7 @@ async function initDefaultOutdoorMap() {
       });
     }
   } catch (err) {
-    console.warn('Outdoor basemap WebGL initialization failed, canvas fallback active:', err);
+    console.warn('MapLibre WebGL online initialization failed, canvas fallback active:', err);
     mapInstance = null;
     currentMapMode = null;
   }
@@ -3012,12 +3057,11 @@ async function initMapLibreWithRegion(region) {
     maplibregl.addProtocol('pmtiles', activeProtocol.tile);
   }
 
-  // Register the local blob as a PMTiles source using FileSource
+  // Register the local IndexedDB Blob as a PMTiles source using FileSource
   const source = new pmtiles.FileSource(region.blob);
   const p = new pmtiles.PMTiles(source);
   activeProtocol.add(p);
-  // Ensure local-region URL key resolves to this archive
-  activeProtocol.tiles.set('local-region', p);
+  activeProtocol.tiles.set(region.id, p);
 
   const container = $('maplibre-container');
   if (mapInstance) {
@@ -3026,47 +3070,208 @@ async function initMapLibreWithRegion(region) {
     currentMapMode = null;
   }
 
-  const centerLon = (region.bbox[0] + region.bbox[2]) / 2;
-  const centerLat = (region.bbox[1] + region.bbox[3]) / 2;
+  // Determine center coordinates: live GPS if within bounds, else archive center
+  let centerLon = (region.center && region.center[0]) || (region.bbox[0] + region.bbox[2]) / 2;
+  let centerLat = (region.center && region.center[1]) || (region.bbox[1] + region.bbox[3]) / 2;
+  let initialZoom = (region.center && region.center[2]) || Math.max(12, region.minZoom || 10);
 
-  // Minimal self-contained offline dark vector style (0 external network requests required)
-  const offlineStyle = {
-    version: 8,
-    sources: {
-      protomaps: {
-        type: 'vector',
-        url: 'pmtiles://local-region'
-      }
-    },
-    layers: [
-      { id: 'bg', type: 'background', paint: { 'background-color': '#061009' } },
-      { id: 'water', type: 'fill', source: 'protomaps', 'source-layer': 'water', paint: { 'fill-color': '#08211b' } },
-      { id: 'landuse', type: 'fill', source: 'protomaps', 'source-layer': 'landuse', paint: { 'fill-color': '#0a1d13' } },
-      { id: 'roads-casing', type: 'line', source: 'protomaps', 'source-layer': 'roads', paint: { 'line-color': '#030805', 'line-width': 2.5 } },
-      { id: 'roads', type: 'line', source: 'protomaps', 'source-layer': 'roads', paint: { 'line-color': '#163824', 'line-width': 1.5 } },
-      { id: 'buildings', type: 'fill', source: 'protomaps', 'source-layer': 'buildings', paint: { 'fill-color': '#0d2115', 'fill-opacity': 0.6 } }
-    ]
-  };
+  if (lastPos && lastPos.lon >= region.bbox[0] && lastPos.lon <= region.bbox[2] &&
+      lastPos.lat >= region.bbox[1] && lastPos.lat <= region.bbox[3]) {
+    centerLon = lastPos.lon;
+    centerLat = lastPos.lat;
+    initialZoom = 15;
+  }
+
+  // Support both Vector (MVT) and Raster PMTiles styles
+  let offlineStyle;
+  if (region.tileType === 1 || !region.tileType) {
+    // Comprehensive outdoor vector style supporting both Protomaps & OpenMapTiles layer schemas
+    offlineStyle = {
+      version: 8,
+      sources: {
+        protomaps: {
+          type: 'vector',
+          url: 'pmtiles://' + region.id
+        }
+      },
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': '#061009' } },
+        { id: 'water', type: 'fill', source: 'protomaps', 'source-layer': 'water', paint: { 'fill-color': '#07241d' } },
+        { id: 'waterway', type: 'line', source: 'protomaps', 'source-layer': 'waterway', paint: { 'line-color': '#0b352b', 'line-width': 1.5 } },
+        { id: 'landuse', type: 'fill', source: 'protomaps', 'source-layer': 'landuse', paint: { 'fill-color': '#0a1d13' } },
+        { id: 'landcover', type: 'fill', source: 'protomaps', 'source-layer': 'landcover', paint: { 'fill-color': '#091c12' } },
+        { id: 'natural', type: 'fill', source: 'protomaps', 'source-layer': 'natural', paint: { 'fill-color': '#0c2317' } },
+        { id: 'park', type: 'fill', source: 'protomaps', 'source-layer': 'park', paint: { 'fill-color': '#0e291b', 'fill-opacity': 0.7 } },
+        { id: 'boundaries', type: 'line', source: 'protomaps', 'source-layer': 'boundaries', paint: { 'line-color': '#114a2c', 'line-dasharray': [3, 2] } },
+        { id: 'roads-casing', type: 'line', source: 'protomaps', 'source-layer': 'roads', paint: { 'line-color': '#030805', 'line-width': 3 } },
+        { id: 'roads', type: 'line', source: 'protomaps', 'source-layer': 'roads', paint: { 'line-color': '#163824', 'line-width': 1.5 } },
+        { id: 'trans-casing', type: 'line', source: 'protomaps', 'source-layer': 'transportation', paint: { 'line-color': '#030805', 'line-width': 3 } },
+        { id: 'trans', type: 'line', source: 'protomaps', 'source-layer': 'transportation', paint: { 'line-color': '#163824', 'line-width': 1.5 } },
+        { id: 'buildings', type: 'fill', source: 'protomaps', 'source-layer': 'buildings', paint: { 'fill-color': '#0d2115', 'fill-opacity': 0.6 } },
+        { id: 'building', type: 'fill', source: 'protomaps', 'source-layer': 'building', paint: { 'fill-color': '#0d2115', 'fill-opacity': 0.6 } }
+      ]
+    };
+  } else {
+    // Raster PMTiles archive style
+    offlineStyle = {
+      version: 8,
+      sources: {
+        'pmtiles-raster': {
+          type: 'raster',
+          tiles: ['pmtiles://' + region.id + '/{z}/{x}/{y}'],
+          tileSize: 256,
+          minzoom: region.minZoom || 0,
+          maxzoom: region.maxZoom || 18
+        }
+      },
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': '#061009' } },
+        { id: 'raster-layer', type: 'raster', source: 'pmtiles-raster' }
+      ]
+    };
+  }
 
   try {
     mapInstance = new maplibregl.Map({
       container: container,
       style: offlineStyle,
       center: [centerLon, centerLat],
-      zoom: 14,
+      zoom: initialZoom,
       bearing: mapBearingDeg,
       attributionControl: false,
-      interactive: false // Controlled via WildTrail HUD zoom buttons
+      interactive: false
     });
     currentMapMode = 'pmtiles:' + region.id;
+    activeRegion = region;
+
     const attrEl = $('map-attribution');
-    if (attrEl) attrEl.textContent = '© OpenStreetMap contributors · Protomaps';
+    if (attrEl) attrEl.innerHTML = `© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · Offline Archive (${escapeHtml(region.name)})`;
+
+    updateSourceBadge(`📦 Offline · ${region.name}`, 'offline');
+    setModalStatus('Available offline', 'badge-offline');
+    updateActiveSourcePanel();
+
     mapInstance.on('load', () => renderMapAndStats());
+    mapInstance.on('move', checkBoundsCoverage);
+    checkBoundsCoverage();
   } catch (err) {
-    console.warn('MapLibre WebGL initialization failed, canvas fallback active:', err);
+    console.warn('MapLibre WebGL offline initialization failed, canvas fallback active:', err);
     mapInstance = null;
     currentMapMode = null;
+    activeRegion = null;
   }
+}
+
+async function activateRegion(regionId) {
+  const reg = await getOne('regions', regionId);
+  if (!reg) return;
+  await metaSet('active_map_region', reg.id);
+  await initMapLibreWithRegion(reg);
+  await renderRegionsList();
+  renderMapAndStats();
+  showToast(`🗺️ Activated offline map: ${reg.name}`);
+  show('maps-manager-modal', false);
+}
+
+async function deactivateToOnline() {
+  await metaSet('active_map_region', 'online');
+  activeRegion = null;
+  await initDefaultOnlineMap();
+  await renderRegionsList();
+  renderMapAndStats();
+  showToast('🌐 Switched to OpenFreeMap online basemap');
+  show('maps-manager-modal', false);
+}
+
+async function deleteRegion(regionId) {
+  const reg = await getOne('regions', regionId);
+  if (!reg) return;
+  const confirmed = confirm(
+    `Delete offline map archive "${reg.name}" from this device?\n\n` +
+    `Your saved finds, GPS trail, and exploration statistics will NOT be deleted.`
+  );
+  if (!confirmed) return;
+
+  await delOne('regions', reg.id);
+  if (activeRegion && activeRegion.id === reg.id) {
+    await deactivateToOnline();
+  } else {
+    await renderRegionsList();
+    await updateStorageStats();
+  }
+  showToast(`🗑️ Removed offline map archive: ${reg.name}`);
+}
+
+async function inspectRegion(regionId) {
+  const reg = await getOne('regions', regionId);
+  if (!reg) return;
+
+  const modal = $('archive-inspector-modal');
+  const filenameEl = $('inspector-filename');
+  const grid = $('inspector-grid');
+  const activateBtn = $('inspector-activate-btn');
+
+  if (filenameEl) filenameEl.textContent = `${reg.filename || reg.name + '.pmtiles'}`;
+
+  if (grid) {
+    grid.innerHTML = '';
+
+    const sizeMb = ((reg.sizeBytes || 0) / 1024 / 1024).toFixed(2);
+    const dateStr = new Date(reg.date).toLocaleDateString([], {
+      month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    const boundsStr = `${reg.bbox[0].toFixed(3)}°W, ${reg.bbox[1].toFixed(3)}°S to ${reg.bbox[2].toFixed(3)}°E, ${reg.bbox[3].toFixed(3)}°N`;
+    const centerStr = `${reg.center[0].toFixed(4)}°, ${reg.center[1].toFixed(4)}° (z${reg.center[2] || 13})`;
+    const zoomStr = `z${reg.minZoom ?? 0} – z${reg.maxZoom ?? 14}`;
+
+    const items = [
+      ['Archive Name', reg.name],
+      ['Format & Engine', reg.tileTypeLabel || (reg.tileType === 1 ? 'Vector Tile (MVT)' : 'Raster Tile')],
+      ['File Size', `${sizeMb} MB (${reg.sizeBytes.toLocaleString()} bytes)`],
+      ['Zoom Range', zoomStr],
+      ['Geographic Bounds', boundsStr],
+      ['Archive Center', centerStr],
+      ['Import Date', dateStr]
+    ];
+
+    items.forEach(([label, val]) => {
+      const row = document.createElement('div');
+      row.className = 'inspector-row';
+      row.innerHTML = `<span class="inspector-label">${escapeHtml(label)}</span><span class="inspector-val">${escapeHtml(val)}</span>`;
+      grid.appendChild(row);
+    });
+
+    // Vector Layers chip breakdown if available
+    if (reg.layers && reg.layers.length > 0) {
+      const row = document.createElement('div');
+      row.className = 'inspector-row';
+      const label = document.createElement('span');
+      label.className = 'inspector-label';
+      label.textContent = `Vector Layers (${reg.layers.length})`;
+      const wrap = document.createElement('div');
+      wrap.className = 'layers-chips-wrap';
+      reg.layers.forEach(lyr => {
+        const chip = document.createElement('span');
+        chip.className = 'layer-chip';
+        chip.textContent = lyr;
+        wrap.appendChild(chip);
+      });
+      row.append(label, wrap);
+      grid.appendChild(row);
+    }
+  }
+
+  if (activateBtn) {
+    const isCurrent = activeRegion && activeRegion.id === reg.id;
+    activateBtn.textContent = isCurrent ? '✓ Currently Active Map' : 'Activate This Archive 🗺️';
+    activateBtn.disabled = isCurrent;
+    activateBtn.onclick = () => {
+      show('archive-inspector-modal', false);
+      activateRegion(reg.id);
+    };
+  }
+
+  show('archive-inspector-modal', true);
 }
 
 // ---------- Offline Maps Manager UI ----------
@@ -3076,9 +3281,59 @@ $('maps-manager-modal').onclick = e => {
   if (e.target === $('maps-manager-modal')) show('maps-manager-modal', false);
 };
 
+$('map-source-badge').onclick = () => openMapsManagerModal();
+$('bounds-recenter-btn').onclick = () => {
+  if (activeRegion && mapInstance) {
+    mapInstance.flyTo({
+      center: [activeRegion.center[0], activeRegion.center[1]],
+      zoom: Math.max(activeRegion.minZoom || 10, 13)
+    });
+    panX = 0; panY = 0;
+    renderMapAndStats();
+  }
+};
+$('bounds-switch-btn').onclick = () => deactivateToOnline();
+$('activate-online-btn').onclick = () => deactivateToOnline();
+
+$('inspector-close-btn').onclick = () => show('archive-inspector-modal', false);
+$('inspector-done-btn').onclick = () => show('archive-inspector-modal', false);
+$('archive-inspector-modal').onclick = e => {
+  if (e.target === $('archive-inspector-modal')) show('archive-inspector-modal', false);
+};
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    show('maps-manager-modal', false);
+    show('archive-inspector-modal', false);
+  }
+});
+
 async function openMapsManagerModal() {
   show('maps-manager-modal', true);
+  await updateStorageStats();
   await renderRegionsList();
+  updateActiveSourcePanel();
+}
+
+async function updateStorageStats() {
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      const usedMb = ((est.usage || 0) / (1024 * 1024)).toFixed(1);
+      const quotaMb = ((est.quota || 0) / (1024 * 1024)).toFixed(0);
+      const quotaGb = ((est.quota || 0) / (1024 * 1024 * 1024)).toFixed(1);
+      const pct = est.quota ? Math.min(100, (est.usage / est.quota) * 100).toFixed(2) : 0;
+
+      const usedEl = $('storage-used-text');
+      if (usedEl) usedEl.textContent = `Storage Used: ${usedMb} MB`;
+
+      const quotaEl = $('storage-quota-text');
+      if (quotaEl) quotaEl.textContent = `Available: ${quotaGb} GB (${pct}% used)`;
+
+      const fillEl = $('storage-meter-fill');
+      if (fillEl) fillEl.style.width = Math.max(1, pct) + '%';
+    }
+  } catch (_) {}
 }
 
 async function renderRegionsList() {
@@ -3087,42 +3342,72 @@ async function renderRegionsList() {
   list.textContent = '';
   show('no-regions-msg', !regions.length);
 
-  // Storage usage
-  try {
-    if (navigator.storage && navigator.storage.estimate) {
-      const est = await navigator.storage.estimate();
-      const usedMb = ((est.usage || 0) / 1024 / 1024).toFixed(1);
-      $('storage-used-text').textContent = `Storage Used: ${usedMb} MB`;
-    }
-  } catch (_) {}
+  const countPill = $('archives-count-pill');
+  if (countPill) countPill.textContent = `${regions.length} archive${regions.length === 1 ? '' : 's'}`;
 
   regions.forEach(reg => {
+    const isActive = activeRegion && activeRegion.id === reg.id;
     const item = document.createElement('div');
-    item.className = 'region-item';
+    item.className = 'region-item' + (isActive ? ' is-active' : '');
 
-    const info = document.createElement('div');
-    info.className = 'region-info';
+    // Header row: Title + badges
+    const headerRow = document.createElement('div');
+    headerRow.className = 'region-header-row';
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'region-title-wrap';
+
     const title = document.createElement('b');
     title.textContent = reg.name;
-    const meta = document.createElement('small');
+    const typePill = document.createElement('span');
+    typePill.className = 'type-pill';
+    typePill.textContent = reg.tileTypeLabel || (reg.tileType === 1 ? 'Vector (MVT)' : 'Raster');
+    titleWrap.append(title, typePill);
+
+    if (isActive) {
+      const activePill = document.createElement('span');
+      activePill.className = 'active-pill';
+      activePill.textContent = '✓ Active';
+      titleWrap.appendChild(activePill);
+    }
+    headerRow.appendChild(titleWrap);
+
+    // Meta grid: size, zoom, bbox, date
+    const metaGrid = document.createElement('div');
+    metaGrid.className = 'region-meta-grid';
     const sizeMb = ((reg.sizeBytes || 0) / 1024 / 1024).toFixed(1);
     const dateStr = new Date(reg.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-    meta.textContent = `${sizeMb} MB · ${dateStr}`;
-    info.append(title, meta);
+    const zoomStr = `z${reg.minZoom ?? 0}–z${reg.maxZoom ?? 14}`;
+    const bboxStr = `${reg.bbox[0].toFixed(2)}°E, ${reg.bbox[1].toFixed(2)}°N`;
+
+    metaGrid.innerHTML = `
+      <span>📦 <b>${sizeMb} MB</b> · ${zoomStr}</span>
+      <span>📅 ${dateStr}</span>
+      <span>🧭 Bounds: ${bboxStr}</span>
+      <span>🔍 Layers: ${reg.layers ? reg.layers.length : 'std'}</span>
+    `;
+
+    // Action buttons row
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'region-actions-row';
+
+    const actBtn = document.createElement('button');
+    actBtn.className = 'primary small-btn';
+    actBtn.textContent = isActive ? '✓ In Use' : 'Activate';
+    actBtn.disabled = isActive;
+    actBtn.onclick = () => activateRegion(reg.id);
+
+    const inspectBtn = document.createElement('button');
+    inspectBtn.className = 'glass-btn small-btn';
+    inspectBtn.textContent = 'Inspect 🔍';
+    inspectBtn.onclick = () => inspectRegion(reg.id);
 
     const delBtn = document.createElement('button');
-    delBtn.className = 'danger-btn';
-    delBtn.textContent = 'Delete';
-    delBtn.onclick = async () => {
-      if (confirm(`Delete downloaded map "${reg.name}"?`)) {
-        await delOne('regions', reg.id);
-        await renderRegionsList();
-        await checkActiveRegionMap();
-        renderMapAndStats();
-      }
-    };
+    delBtn.className = 'danger-btn small-btn';
+    delBtn.textContent = 'Delete 🗑️';
+    delBtn.onclick = () => deleteRegion(reg.id);
 
-    item.append(info, delBtn);
+    actionsRow.append(actBtn, inspectBtn, delBtn);
+    item.append(headerRow, metaGrid, actionsRow);
     list.appendChild(item);
   });
 }
@@ -3132,34 +3417,69 @@ $('import-pmtiles-input').onchange = async e => {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
 
+  setModalStatus('Importing...', 'badge-importing');
+
   const libs = await loadMapLibraries();
   if (!libs || !libs.pmtiles) {
     showToast('⚠️ Map engine not ready. Check your connection.');
+    setModalStatus('Error', 'badge-error');
     e.target.value = '';
     return;
   }
 
-  let bbox;
+  let header;
+  let metadata = null;
+  const pm = libs.pmtiles;
+
   try {
-    const pm = libs.pmtiles;
     const source = new pm.FileSource(file);
     const p = new pm.PMTiles(source);
-    const header = await p.getHeader();
+    header = await p.getHeader();
     if (!header || header.minLon == null || isNaN(header.minLon)) {
-      throw new Error('Invalid PMTiles header');
+      throw new Error('Archive header is missing valid geographic bounds.');
     }
-    bbox = [header.minLon, header.minLat, header.maxLon, header.maxLat];
+    // Verify supported tile formats: 1 (Mvt vector) or 2..5 (Raster)
+    if (header.tileType === 0) {
+      throw new Error('Unrecognized tileType format. Please provide a standard Vector (MVT) or Raster PMTiles archive.');
+    }
+
+    try {
+      metadata = await p.getMetadata();
+    } catch (_) {
+      metadata = null;
+    }
   } catch (err) {
-    console.warn('Invalid PMTiles archive:', err);
-    showToast('⚠️ Selected file is not a valid PMTiles archive.');
+    console.warn('Invalid PMTiles archive import attempt:', err);
+    setModalStatus('Error', 'badge-error');
+    showToast(`⚠️ Invalid PMTiles archive: ${err.message || 'Header check failed'}`);
     e.target.value = '';
     return;
   }
 
+  const bbox = [header.minLon, header.minLat, header.maxLon, header.maxLat];
+  const centerLon = header.centerLon || (header.minLon + header.maxLon) / 2;
+  const centerLat = header.centerLat || (header.minLat + header.maxLat) / 2;
+  const centerZoom = header.centerZoom || Math.round((header.minZoom + header.maxZoom) / 2);
+
+  // Extract layer names if vector layers metadata is present
+  let layers = [];
+  if (metadata && Array.isArray(metadata.vector_layers)) {
+    layers = metadata.vector_layers.map(l => l.id || l.name).filter(Boolean);
+  }
+
+  const tileTypeLabel = header.tileType === 1 ? 'Vector (MVT)' : 'Raster Tiles';
+
   const region = {
-    id: 'region-' + Date.now(),
-    name: file.name.replace(/\.pmtiles$/i, '') || 'Imported Region',
+    id: 'pmtiles-' + Date.now(),
+    name: file.name.replace(/\.pmtiles$/i, '') || 'Backcountry Region',
+    filename: file.name,
     bbox: bbox,
+    center: [centerLon, centerLat, centerZoom],
+    minZoom: header.minZoom,
+    maxZoom: header.maxZoom,
+    tileType: header.tileType,
+    tileTypeLabel: tileTypeLabel,
+    layers: layers,
     sizeBytes: file.size,
     date: Date.now(),
     blob: file
@@ -3167,16 +3487,23 @@ $('import-pmtiles-input').onchange = async e => {
 
   try {
     await putAll('regions', region);
+    await metaSet('active_map_region', region.id);
+    await updateStorageStats();
     await renderRegionsList();
-    await checkActiveRegionMap();
+    await initMapLibreWithRegion(region);
     renderMapAndStats();
-    showToast(`🗺️ Map "${region.name}" imported into offline storage!`);
+    showToast(`🗺️ Map "${region.name}" imported and activated!`);
+    setModalStatus('Available offline', 'badge-offline');
   } catch (err) {
+    console.error('Failed to store PMTiles in IndexedDB:', err);
+    setModalStatus('Error', 'badge-error');
     if (err.name === 'QuotaExceededError') {
-      alert('Storage quota exceeded! Please delete older regions or free up space.');
+      alert('Storage quota exceeded! Please delete older regions or free up browser space.');
     } else {
       alert('Could not store map: ' + err.message);
     }
+  } finally {
+    e.target.value = '';
   }
 };
 

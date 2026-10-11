@@ -1,6 +1,7 @@
-// Caches the app shell and the AI library so WildTrail works offline.
-// (The model files themselves are cached by transformers.js in the browser's Cache Storage.)
-const CACHE = 'wildtrail-v44';
+// Caches the app shell and vendor libraries so WildTrail works offline.
+// (Model weights are cached by Transformers.js in browser Cache Storage.
+// Offline vector map regions are stored in IndexedDB as .pmtiles archives.)
+const CACHE = 'wildtrail-v45';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'shutter.wav'];
 const EXTERNAL_ASSETS = [
   'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css',
@@ -29,8 +30,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   const mine = url.origin === location.origin;
   const lib = url.hostname === 'cdn.jsdelivr.net';
-  const isTile = url.hostname.endsWith('basemaps.cartocdn.com');
-  if (e.request.method !== 'GET' || !(mine || lib || isTile)) return;
+  if (e.request.method !== 'GET' || !(mine || lib)) return;
   e.respondWith(
     caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
       if (res.ok) {
@@ -38,11 +38,6 @@ self.addEventListener('fetch', e => {
         caches.open(CACHE).then(c => c.put(e.request, copy));
       }
       return res;
-    }).catch(err => {
-      if (isTile) {
-        return new Response('', { status: 408, statusText: 'Offline tile not cached' });
-      }
-      throw err;
     }))
   );
 });

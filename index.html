@@ -248,11 +248,21 @@
           <button id="map-fullscreen-btn" class="fab-btn" title="Toggle fullscreen">⛶</button>
         </div>
         <div id="gps-status" class="gps-chip">📍 GPS: Standby</div>
+        <div id="map-source-badge" class="map-source-badge" title="Active basemap source · Tap to manage offline maps">
+          <span class="source-status-dot online"></span>
+          <span id="map-source-text">🌐 Online · OpenFreeMap</span>
+        </div>
+        <div id="map-bounds-banner" class="map-bounds-banner hidden" role="alert">
+          <span class="bounds-icon">⚠️</span>
+          <span>Outside offline map coverage</span>
+          <button id="bounds-recenter-btn" class="bounds-btn" type="button">Center Archive</button>
+          <button id="bounds-switch-btn" class="bounds-btn" type="button">Use Online</button>
+        </div>
         <div class="map-scale-ruler">
           <div class="scale-bar-line"></div>
           <span id="scale-label" class="scale-label">100 m</span>
         </div>
-        <div class="map-attribution" id="map-attribution">© OpenStreetMap contributors · CARTO</div>
+        <div class="map-attribution" id="map-attribution">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · Style by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a></div>
 
         <!-- Interactive Map Pin Popup -->
         <div id="map-pin-popup" class="map-pin-popup hidden">
@@ -278,7 +288,7 @@
         <div class="stats" id="stats"></div>
 
         <div class="hint-card">
-          <p class="hint">🌿 Outdoor nature map displays forests, parks, trails, and paths. Walk to reveal unexplored fog-of-war territory. Viewed map areas are cached locally for offline field use.</p>
+          <p class="hint">🌿 Explore with OpenFreeMap vector street & topography data online, or import .pmtiles archives into IndexedDB for genuine offline wilderness navigation without cell connectivity.</p>
         </div>
 
         <div class="row data-actions">
@@ -290,31 +300,92 @@
   </section>
 </main>
 
-<!-- Offline Maps Manager Modal -->
-<div id="maps-manager-modal" class="modal-backdrop hidden">
-  <div class="modal-sheet">
-    <button id="maps-close-btn" class="modal-close" aria-label="Close modal">&times;</button>
+<!-- Offline Vector Maps Manager Modal -->
+<div id="maps-manager-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="maps-modal-heading">
+  <div class="modal-sheet offline-maps-sheet">
+    <button id="maps-close-btn" class="modal-close" aria-label="Close offline maps modal">&times;</button>
     <div class="modal-content">
       <div class="consent-header">
         <span class="consent-icon">🗺️</span>
-        <h3>Offline Vector Maps (PMTiles)</h3>
+        <div>
+          <h3 id="maps-modal-heading">Offline Vector Maps</h3>
+          <p class="modal-subtitle">Self-contained .pmtiles archives stored locally for zero-network field navigation.</p>
+        </div>
       </div>
-      <p class="consent-desc">
-        WildTrail includes a detailed outdoor nature map cached automatically for offline field use. For deep backcountry expeditions without cell coverage, you can also import an open <a href="https://protomaps.com" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">PMTiles</a> vector archive.
-      </p>
-      <div class="storage-summary">
-        <span id="storage-used-text">Storage Used: 0 MB</span>
-        <span class="storage-quota-hint">Stored locally in IndexedDB</span>
+
+      <!-- Storage & Status Summary Bar -->
+      <div class="storage-summary-card">
+        <div class="storage-header-row">
+          <span class="storage-label">Local Offline Storage</span>
+          <span id="modal-status-badge" class="status-badge badge-ready">Ready</span>
+        </div>
+        <div class="storage-meter-track" aria-hidden="true">
+          <div id="storage-meter-fill" class="storage-meter-fill" style="width: 0%;"></div>
+        </div>
+        <div class="storage-meta-row">
+          <span id="storage-used-text">Storage Used: 0.0 MB</span>
+          <span id="storage-quota-text" class="storage-quota-hint">IndexedDB Persistent</span>
+        </div>
       </div>
+
+      <!-- Active Basemap Switcher Panel -->
+      <div class="active-source-panel">
+        <div class="source-info">
+          <span class="source-sub">CURRENT BASEMAP</span>
+          <div id="active-source-label" class="source-main">🌐 OpenFreeMap Liberty (Online Vector)</div>
+        </div>
+        <button id="activate-online-btn" class="glass-btn small-btn hidden" type="button" title="Switch back to online vector map">
+          Use Online Map 🌐
+        </button>
+      </div>
+
+      <!-- Section: Imported Map Archives -->
+      <div class="archives-section-header">
+        <h4>Imported Map Archives</h4>
+        <span id="archives-count-pill" class="count-pill">0 archives</span>
+      </div>
+
       <div id="regions-list" class="regions-list"></div>
+
       <div id="no-regions-msg" class="empty-state">
-        <p>Using default outdoor nature basemap.<br>Import a .pmtiles archive to load dedicated backcountry vector regions.</p>
+        <span class="empty-icon">🏔️</span>
+        <p><b>No offline map archives installed.</b><br>Currently rendering online vector tiles via OpenFreeMap. Import an open <code>.pmtiles</code> archive to explore remote wilderness zones offline.</p>
       </div>
+
+      <!-- Actions -->
       <div class="maps-manager-actions">
-        <label class="file-import-btn primary full-width" style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <label class="file-import-btn primary full-width">
           <span>📂 Import .pmtiles Archive</span>
           <input type="file" id="import-pmtiles-input" accept=".pmtiles" style="display:none;">
         </label>
+        <p class="import-disclaimer">
+          Supports standard PMTiles v3 vector (MVT) and raster archives. Files remain strictly on your device inside IndexedDB.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Archive Inspector Modal -->
+<div id="archive-inspector-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="inspector-heading">
+  <div class="modal-sheet inspector-sheet">
+    <button id="inspector-close-btn" class="modal-close" aria-label="Close archive inspector">&times;</button>
+    <div class="modal-content">
+      <div class="consent-header">
+        <span class="consent-icon">🔍</span>
+        <div>
+          <h3 id="inspector-heading">Archive Inspector</h3>
+          <p id="inspector-filename" class="modal-subtitle">archive.pmtiles</p>
+        </div>
+      </div>
+      
+      <div class="inspector-grid" id="inspector-grid">
+        <!-- Populated dynamically: Size, Format, Zoom, Bounds, Center, Layers -->
+      </div>
+
+      <div class="inspector-actions">
+        <button id="inspector-activate-btn" class="primary full-width" type="button">Activate This Archive 🗺️</button>
+        <button id="inspector-done-btn" class="glass-btn full-width" type="button">Close Inspector</button>
       </div>
     </div>
   </div>
