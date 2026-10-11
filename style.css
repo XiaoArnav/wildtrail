@@ -506,30 +506,8 @@ video {
 .corner.bl { bottom: 54px; left: 0; border-bottom-width: 2.5px; border-left-width: 2.5px; border-bottom-left-radius: 5px; }
 .corner.br { bottom: 54px; right: 0; border-bottom-width: 2.5px; border-right-width: 2.5px; border-bottom-right-radius: 5px; }
 
-.lens-status {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--muted);
-  background: rgba(0, 0, 0, 0.6);
-  padding: 4px 10px;
-  border-radius: 999px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.lens-status.active {
-  color: #ffd60a;
-  border: 1px solid rgba(255, 214, 10, 0.4);
-  box-shadow: 0 0 12px rgba(255, 214, 10, 0.25);
-  animation: lensGlow 2.5s ease-in-out infinite alternate;
-}
-
-@keyframes lensGlow {
-  0% { opacity: 0.75; }
-  100% { opacity: 1; }
+#flip-cam-btn {
+  margin-left: auto;
 }
 
 /* Gesture-Attached Camera Zoom (Slide finger left/right) */

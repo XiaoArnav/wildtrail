@@ -598,8 +598,6 @@ async function flipCamera() {
 
   if (stream) {
     await startCamera(nextMode);
-  } else {
-    $('lens-status').textContent = nextMode === 'user' ? '○ Selfie Lens' : '○ Back Lens';
   }
 }
 
@@ -639,8 +637,6 @@ async function startCamera(facingMode = currentFacingMode) {
     show('cam-msg', false);
     $('snap-btn').disabled = false;
     $('cam-btn-text').textContent = 'Stop camera';
-    $('lens-status').textContent = currentFacingMode === 'user' ? '● Selfie Lens' : '● Live Lens';
-    $('lens-status').classList.add('active');
 
     const [vTrack] = stream.getVideoTracks();
     currentVideoTrack = vTrack;
@@ -679,8 +675,6 @@ function stopCamera() {
   $('cam-msg').textContent = 'Camera is off';
   $('snap-btn').disabled = true;
   $('cam-btn-text').textContent = 'Start camera';
-  $('lens-status').textContent = currentFacingMode === 'user' ? '○ Selfie Lens' : '○ Standby';
-  $('lens-status').classList.remove('active');
   if ($('torch-btn')) {
     $('torch-btn').classList.add('hidden');
     $('torch-btn').classList.remove('active');
