@@ -1,0 +1,20 @@
+{
+  "name": "wildtrail",
+  "version": "1.0.0",
+  "description": "Journey Towards the Uncharted - Collect real wildlife outdoors",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'No build step required for static HTML'",
+    "lint": "echo 'No linter configured'"
+  },
+  "keywords": ["wildlife", "ai", "offline", "pwa"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/speed-insights": "^1.1.0"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}
