@@ -184,7 +184,7 @@ flowchart TD
 - **Dynamic Fog-of-War:** Dark hexagonal grid uncovers real-world terrain as you walk outdoors.
 - **Navigation HUD:** Dynamic vision cone indicating heading, glowing GPS trail, and dynamic scale ruler.
 - **Discovery Pins:** Tap any discovery pin to open specimen details and jump directly to its Field Guide card.
-- **Offline PMTiles Maps:** Download vector street boundaries (~12–18 MB) for offline wilderness expeditions.
+- **Offline PMTiles Maps:** Import open vector street map archives (PMTiles format) directly into IndexedDB for offline wilderness expeditions.
 
 </details>
 
@@ -200,7 +200,7 @@ flowchart TD
 | **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser |
 | **Local Persistence** | IndexedDB | Private storage for finds, coordinates, and offline regions |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage shutter sound |
-| **Installable App** | Service Worker (`wildtrail-v37`) · Web App Manifest | Full offline caching and standalone PWA support |
+| **Installable App** | Service Worker (`wildtrail-v38`) · Web App Manifest | Full offline caching and standalone PWA support |
 | **Hosting & Edge** | [Vercel](https://vercel.com/) | Continuous deployment with zero server maintenance |
 
 ---

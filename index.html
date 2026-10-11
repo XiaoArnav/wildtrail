@@ -234,15 +234,14 @@
 
   <!-- Map -->
   <section id="view-map" class="view">
-    <!-- Edge Warning Banner -->
+    <!-- Edge Exploration Banner -->
     <div id="edge-banner" class="edge-banner hidden">
       <div class="edge-banner-content">
-        <span class="edge-banner-icon">⚠️</span>
-        <span id="edge-banner-text" class="edge-banner-text">You're nearing uncharted ground. Download the map for this area?</span>
+        <span class="edge-banner-icon">🧭</span>
+        <span id="edge-banner-text" class="edge-banner-text">Uncharted Territory: Venturing beyond mapped paths. Keep exploring to reveal fog-of-war!</span>
       </div>
       <div class="edge-banner-actions">
-        <button id="edge-download-btn" class="edge-btn primary-edge">Download</button>
-        <button id="edge-dismiss-btn" class="edge-btn secondary-edge">Not now</button>
+        <button id="edge-dismiss-btn" class="edge-btn primary-edge">Explore Onwards 🌲</button>
       </div>
     </div>
 
@@ -300,72 +299,29 @@
   </section>
 </main>
 
-<!-- Map Consent & Download Modal -->
-<div id="map-consent-modal" class="modal-backdrop hidden">
-  <div class="modal-sheet">
-    <button id="consent-close-btn" class="modal-close" aria-label="Close modal">&times;</button>
-    <div class="modal-content">
-      <div class="consent-header">
-        <span class="consent-icon">🗺️</span>
-        <h3>Download Offline Street Map</h3>
-      </div>
-      <p class="consent-desc">
-        Download local street map data once to view real streets and terrain beneath your fog-of-war.
-      </p>
-      
-      <div class="privacy-notice">
-        <b>🔒 Privacy Promise:</b>
-        <p>Downloading contacts a map tile server once to fetch the region you approve. Afterwards, all map data is stored on your device and works 100% offline. Zero location data is ever sent again.</p>
-      </div>
-
-      <div class="consent-options">
-        <label>Coverage Radius around you:
-          <select id="consent-radius">
-            <option value="15">15 km (~12 MB)</option>
-            <option value="25" selected>25 km (~18 MB)</option>
-          </select>
-        </label>
-        <div id="dl-estimate" class="dl-estimate">Estimated download: ~18 MB</div>
-        <div id="dl-upgrade-hint" class="dl-upgrade-hint hidden"></div>
-      </div>
-      
-      <div id="dl-progress-box" class="dl-progress-box hidden">
-        <div class="dl-progress-bar-wrap">
-          <div id="dl-progress-bar" class="dl-progress-bar"></div>
-        </div>
-        <div class="dl-progress-status">
-          <span id="dl-status-text">Downloading vector tiles...</span>
-          <span id="dl-pct-text">0%</span>
-        </div>
-      </div>
-
-      <div class="row modal-actions">
-        <button id="skip-map-btn" class="secondary">Skip (Keep Fog of War)</button>
-        <button id="confirm-dl-btn" class="primary">Download Area</button>
-        <button id="cancel-dl-btn" class="danger-btn hidden">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Offline Maps Manager Modal -->
 <div id="maps-manager-modal" class="modal-backdrop hidden">
   <div class="modal-sheet">
     <button id="maps-close-btn" class="modal-close" aria-label="Close modal">&times;</button>
     <div class="modal-content">
-      <h3>Offline Map Regions</h3>
+      <div class="consent-header">
+        <span class="consent-icon">🗺️</span>
+        <h3>Offline Vector Maps (PMTiles)</h3>
+      </div>
+      <p class="consent-desc">
+        WildTrail is 100% private and serverless. To render street vectors beneath your fog-of-war without cellular coverage, import an open <a href="https://protomaps.com" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">PMTiles</a> archive.
+      </p>
       <div class="storage-summary">
         <span id="storage-used-text">Storage Used: 0 MB</span>
-        <span class="storage-quota-hint">Stored locally on device</span>
+        <span class="storage-quota-hint">Stored locally in IndexedDB</span>
       </div>
       <div id="regions-list" class="regions-list"></div>
       <div id="no-regions-msg" class="empty-state">
-        <p>No offline regions downloaded yet.<br>Download your area or import a .pmtiles file to view streets offline.</p>
+        <p>No offline map archives imported yet.<br>Import a .pmtiles archive to render street vectors offline.</p>
       </div>
       <div class="maps-manager-actions">
-        <button id="new-dl-btn" class="primary full-width">Download Area Around Me</button>
-        <label class="file-import-btn glass-btn full-width">
-          <span>📂 Import .pmtiles File</span>
+        <label class="file-import-btn primary full-width" style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>📂 Import .pmtiles Archive</span>
           <input type="file" id="import-pmtiles-input" accept=".pmtiles" style="display:none;">
         </label>
       </div>

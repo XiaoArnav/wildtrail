@@ -11,7 +11,9 @@ const SPECIES = [
   ['kingfisher', 'bird'], ['hoopoe', 'bird'], ['barn swallow', 'bird'],
   ['spotted dove', 'bird'], ['rock pigeon', 'bird'], ['owl', 'bird'], ['eagle', 'bird'],
   ['heron', 'bird'], ['duck', 'bird'], ['parrot', 'bird'],
+  ['penguin', 'bird'], ['razorbill', 'bird'],
   // animals
+  ['tiger', 'animal'], ['leopard', 'animal'], ['lion', 'animal'], ['bear', 'animal'],
   ['dog', 'animal'], ['cat', 'animal'], ['cow', 'animal'], ['Indian palm squirrel', 'animal'],
   ['rhesus macaque monkey', 'animal'], ['langur', 'animal'], ['spotted deer', 'animal'],
   ['goat', 'animal'], ['buffalo', 'animal'], ['horse', 'animal'], ['elephant', 'animal'],
@@ -30,6 +32,7 @@ const SPECIES = [
   ['lily', 'flower'], ['dandelion', 'flower'], ['lavender', 'flower'], ['cosmos flower', 'flower'],
   ['gulmohar flower', 'flower'], ['morning glory', 'flower'], ['zinnia', 'flower'],
   ['lantana', 'flower'], ['leaf', 'flower'], ['mushroom', 'flower'],
+  ['euphorbia milii', 'flower'], ['ghost orchid', 'flower'],
 ];
 // Anything that is not wildlife or a plant, so the model can say "nothing found".
 const NONE_LABEL = 'a person, a room, a building or an everyday object';
@@ -1151,7 +1154,7 @@ function showToast(message) {
     toast.className = 'uncharted-toast';
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span>${message}</span>`;
+  toast.textContent = message;
   toast.classList.remove('hidden');
   if ('vibrate' in navigator) navigator.vibrate(30);
   clearTimeout(toast._timer);
@@ -1231,10 +1234,7 @@ $('save-btn').onclick = async () => {
     guessed: pending.guesses[0] ? pending.guesses[0].label : null,
   });
 
-  // Option A: Auto-download high-resolution photo to device storage
-  const safeName = name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-  autoDownloadPhoto(photoToSave, `wildtrail-${safeName}-${Date.now()}.jpg`);
-  showToast(`✨ Saved "${name}" to Collection & downloaded to device!`);
+  showToast(`✨ Saved "${name}" to Collection!`);
 
   pending = null;
   show('result', false);
@@ -1282,7 +1282,7 @@ function getLocationAndDate(find) {
     year: 'numeric'
   }).toUpperCase();
 
-  let location = 'DELHI';
+  let location = 'WILDTRAIL';
   if (find.lat != null && find.lon != null) {
     const lat = find.lat;
     const lon = find.lon;
@@ -2008,10 +2008,7 @@ $('edge-dismiss-btn').onclick = () => {
   sessionStorage.setItem('edge_prompt_dismissed', 'true');
   show('edge-banner', false);
 };
-$('edge-download-btn').onclick = () => {
-  show('edge-banner', false);
-  openConsentModal();
-};
+
 
 function project(pt, origin) { // metres east/north of origin
   const k = 111320;
@@ -2809,13 +2806,23 @@ async function renderRegionsList() {
   });
 }
 
-// File import for .pmtiles archives
+// File import for .pmtiles archives (Authentic, genuine offline vector maps)
 $('import-pmtiles-input').onchange = async e => {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
   const pos = lastPos || await getPosition() || { lat: 12.9716, lon: 77.5946 };
-  const dLat = 0.15, dLon = 0.15;
-  const bbox = [pos.lon - dLon, pos.lat - dLat, pos.lon + dLon, pos.lat + dLat];
+  let bbox = [pos.lon - 0.15, pos.lat - 0.15, pos.lon + 0.15, pos.lat + 0.15];
+
+  // Read actual geographic bounding box from PMTiles header if available
+  try {
+    if (window.pmtiles && pmtiles.PMTiles) {
+      const p = new pmtiles.PMTiles(new pmtiles.BlobSource(file));
+      const header = await p.getHeader();
+      if (header && header.minLon != null && header.maxLon != null) {
+        bbox = [header.minLon, header.minLat, header.maxLon, header.maxLat];
+      }
+    }
+  } catch (_) {}
 
   const region = {
     id: 'region-' + Date.now(),
@@ -2831,7 +2838,7 @@ $('import-pmtiles-input').onchange = async e => {
     await renderRegionsList();
     await checkActiveRegionMap();
     renderMapAndStats();
-    alert(`Map "${region.name}" imported successfully!`);
+    showToast(`🗺️ Map "${region.name}" imported into offline storage!`);
   } catch (err) {
     if (err.name === 'QuotaExceededError') {
       alert('Storage quota exceeded! Please delete older regions or free up space.');
@@ -2840,181 +2847,6 @@ $('import-pmtiles-input').onchange = async e => {
     }
   }
 };
-
-// ---------- Consent & Download Modal ----------
-let downloadAbortController = null;
-
-// Bounding box overlap computation ([minLon, minLat, maxLon, maxLat])
-function computeBoxOverlap(a, b) {
-  const intMinLon = Math.max(a[0], b[0]);
-  const intMinLat = Math.max(a[1], b[1]);
-  const intMaxLon = Math.min(a[2], b[2]);
-  const intMaxLat = Math.min(a[3], b[3]);
-
-  if (intMaxLon <= intMinLon || intMaxLat <= intMinLat) return { pctA: 0, pctB: 0 };
-
-  const intArea = (intMaxLon - intMinLon) * (intMaxLat - intMinLat);
-  const aArea = (a[2] - a[0]) * (a[3] - a[1]);
-  const bArea = (b[2] - b[0]) * (b[3] - b[1]);
-
-  return {
-    pctA: aArea > 0 ? (intArea / aArea) : 0,
-    pctB: bArea > 0 ? (intArea / bArea) : 0
-  };
-}
-
-async function findOverlappingRegions(targetBbox) {
-  const regions = await getAll('regions');
-  if (!regions || !regions.length) return [];
-  const superseded = [];
-
-  for (const reg of regions) {
-    const { pctA } = computeBoxOverlap(reg.bbox, targetBbox);
-    // If targetBbox covers 60% or more of an existing region's area, it supersedes it
-    if (pctA >= 0.60) {
-      superseded.push(reg);
-    }
-  }
-  return superseded;
-}
-
-async function openConsentModal() {
-  show('maps-manager-modal', false);
-  show('map-consent-modal', true);
-  await updateDownloadEstimate();
-}
-
-$('new-dl-btn').onclick = openConsentModal;
-$('consent-close-btn').onclick = () => {
-  if (downloadAbortController) downloadAbortController.abort();
-  show('map-consent-modal', false);
-};
-$('skip-map-btn').onclick = () => show('map-consent-modal', false);
-
-$('consent-radius').onchange = () => updateDownloadEstimate();
-async function updateDownloadEstimate() {
-  const rad = $('consent-radius').value;
-  $('dl-estimate').textContent = rad === '15' ? 'Estimated download: ~12 MB' : 'Estimated download: ~18 MB';
-
-  const pos = lastPos || await getPosition();
-  const hintEl = $('dl-upgrade-hint');
-  if (!pos) {
-    hintEl.textContent = '';
-    show('dl-upgrade-hint', false);
-    return;
-  }
-
-  const radiusKm = Number(rad);
-  const dLat = radiusKm / 111;
-  const dLon = radiusKm / (111 * Math.cos(pos.lat * Math.PI / 180));
-  const newBbox = [pos.lon - dLon, pos.lat - dLat, pos.lon + dLon, pos.lat + dLat];
-
-  const overlapping = await findOverlappingRegions(newBbox);
-  if (overlapping.length > 0) {
-    const oldNames = overlapping.map(r => r.name).join(', ');
-    const oldMb = overlapping.reduce((acc, r) => acc + (r.sizeBytes || 0), 0) / 1024 / 1024;
-    hintEl.textContent = `♻️ Smart Upgrade: Replaces "${oldNames}" (~${oldMb.toFixed(1)} MB). Saves storage by automatically purging duplicate map tiles!`;
-    show('dl-upgrade-hint', true);
-  } else {
-    hintEl.textContent = '';
-    show('dl-upgrade-hint', false);
-  }
-}
-
-$('confirm-dl-btn').onclick = async () => {
-  const pos = lastPos || await getPosition();
-  if (!pos) {
-    alert('Please allow location permission to determine the map area around you.');
-    return;
-  }
-
-  const radiusKm = Number($('consent-radius').value);
-  const dLat = radiusKm / 111;
-  const dLon = radiusKm / (111 * Math.cos(pos.lat * Math.PI / 180));
-  const bbox = [pos.lon - dLon, pos.lat - dLat, pos.lon + dLon, pos.lat + dLat];
-
-  show('dl-progress-box', true);
-  show('confirm-dl-btn', false);
-  show('skip-map-btn', false);
-  show('cancel-dl-btn', true);
-  $('dl-status-text').textContent = 'Fetching offline map vector archive...';
-  $('dl-progress-bar').style.width = '0%';
-  $('dl-pct-text').textContent = '0%';
-
-  downloadAbortController = new AbortController();
-
-  try {
-    // Simulated realistic chunked download with progress & abort support
-    const totalBytes = radiusKm === 15 ? 12 * 1024 * 1024 : 18 * 1024 * 1024;
-    let received = 0;
-    const chunkSize = 1.2 * 1024 * 1024;
-
-    while (received < totalBytes) {
-      if (downloadAbortController.signal.aborted) throw new Error('Download cancelled');
-      await new Promise(r => setTimeout(r, 120));
-      received = Math.min(received + chunkSize, totalBytes);
-      const pct = Math.round((received / totalBytes) * 100);
-      $('dl-progress-bar').style.width = `${pct}%`;
-      $('dl-pct-text').textContent = `${pct}%`;
-      $('dl-status-text').textContent = `Downloading tiles: ${(received / 1024 / 1024).toFixed(1)} / ${(totalBytes / 1024 / 1024).toFixed(1)} MB`;
-    }
-
-    // Create offline storage blob
-    const sampleBuffer = new Uint8Array(2048); // Minimal PMTiles container placeholder
-    const blob = new Blob([sampleBuffer], { type: 'application/octet-stream' });
-
-    const region = {
-      id: 'region-' + Date.now(),
-      name: `Offline Area (${pos.lat.toFixed(2)}°, ${pos.lon.toFixed(2)}°)`,
-      bbox: bbox,
-      sizeBytes: totalBytes,
-      date: Date.now(),
-      blob: blob
-    };
-
-    // Remove superseded overlapping regions to save storage on device
-    const superseded = await findOverlappingRegions(bbox);
-    for (const oldReg of superseded) {
-      await delOne('regions', oldReg.id);
-    }
-
-    await putAll('regions', region);
-    show('map-consent-modal', false);
-    resetDownloadModal();
-    await checkActiveRegionMap();
-    renderMapAndStats();
-
-    if (superseded.length > 0) {
-      const oldNames = superseded.map(r => r.name).join(', ');
-      alert(`Map expanded to ${radiusKm} km! Replaced "${oldNames}" to save storage on your device.`);
-    } else {
-      alert('Offline map successfully saved to this device! Streets will now render beneath your fog of war.');
-    }
-  } catch (err) {
-    if (err.name === 'QuotaExceededError') {
-      alert('Device storage full! Please delete existing map regions to free up space.');
-    } else if (err.message !== 'Download cancelled') {
-      alert('Download error: ' + err.message);
-    }
-    resetDownloadModal();
-  }
-};
-
-$('cancel-dl-btn').onclick = () => {
-  if (downloadAbortController) downloadAbortController.abort();
-  resetDownloadModal();
-};
-
-function resetDownloadModal() {
-  downloadAbortController = null;
-  show('dl-progress-box', false);
-  show('confirm-dl-btn', true);
-  show('skip-map-btn', true);
-  show('cancel-dl-btn', false);
-  $('dl-progress-bar').style.width = '0%';
-  $('dl-upgrade-hint').textContent = '';
-  show('dl-upgrade-hint', false);
-}
 
 // ---------- Export and erase (you own your data) ----------
 $('export-btn').onclick = async () => {
