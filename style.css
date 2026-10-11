@@ -129,6 +129,15 @@ h1 {
   font-size: 13px;
   font-weight: 600;
   color: #fef3c7;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.trainer-chip:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.5);
+  transform: translateY(-1px);
 }
 
 /* Main Container */
@@ -1899,7 +1908,7 @@ nav {
   border: 1px solid var(--card-border);
   border-radius: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
-  z-index: 40;
+  z-index: 100;
 }
 
 .nav-item {

@@ -93,7 +93,7 @@ const show = (id, on = true) => $(id).classList.toggle('hidden', !on);
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === name));
-  $('nav').classList.toggle('hidden', name === 'welcome');
+  $('nav').classList.remove('hidden');
   if (name === 'collection') renderCollection();
   if (name === 'map') {
     if (mapInstance) mapInstance.resize();
@@ -113,29 +113,177 @@ window.addEventListener('resize', () => {
 
 // ---------- Profile (local only, no login server) ----------
 async function updateTrainerChip() {
-  const name = await metaGet('name');
-  if (!name) return;
+  let name = await metaGet('name');
+  if (!name) name = 'Arnav';
   const allFinds = await getAll('finds');
-  $('who').textContent = `🌿 ${name} · ${allFinds.length}`;
+  if ($('who')) {
+    $('who').textContent = `🌿 ${name} · ${allFinds.length}`;
+  }
+}
+
+if ($('who')) {
+  $('who').onclick = async () => {
+    const cur = (await metaGet('name')) || 'Arnav';
+    const val = prompt('Edit Explorer Name:', cur);
+    if (val && val.trim()) {
+      await metaSet('name', val.trim());
+      await updateTrainerChip();
+    }
+  };
+}
+
+// ---------- Starter Specimen Pre-seeding (Ensures Field Guide & Territory are alive on first visit) ----------
+async function seedStarterFinds() {
+  const existing = await getAll('finds');
+  if (existing && existing.length > 0) return;
+
+  function createSpecimenCanvasPhoto(title, subtitle, color1, color2, emoji) {
+    const c = document.createElement('canvas');
+    c.width = 800;
+    c.height = 800;
+    const ctx = c.getContext('2d');
+
+    // Rich botanical nature background
+    const grad = ctx.createRadialGradient(400, 360, 60, 400, 400, 500);
+    grad.addColorStop(0, color1);
+    grad.addColorStop(1, color2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 800, 800);
+
+    // Vignette
+    const vig = ctx.createRadialGradient(400, 400, 260, 400, 400, 460);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.6)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, 800, 800);
+
+    // Decorative botanical aperture circles
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(400, 350, 220, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(400, 350, 240, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Central emoji illustration
+    ctx.font = '160px system-ui, Apple Color Emoji, Segoe UI Emoji';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 28;
+    ctx.shadowOffsetY = 12;
+    ctx.fillText(emoji, 400, 340);
+    ctx.shadowColor = 'transparent';
+
+    // Archival banner card at bottom
+    ctx.fillStyle = 'rgba(7, 14, 10, 0.9)';
+    ctx.fillRect(50, 610, 700, 140);
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(50, 610, 700, 140);
+
+    // Specimen typography
+    ctx.font = 'bold 32px Georgia, serif';
+    ctx.fillStyle = '#fbfbf9';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, 400, 665);
+
+    ctx.font = 'italic 19px Georgia, serif';
+    ctx.fillStyle = '#a7f3d0';
+    ctx.fillText(subtitle, 400, 712);
+
+    return c.toDataURL('image/jpeg', 0.92);
+  }
+
+  const starter1 = {
+    name: 'Royal Bengal Tiger',
+    type: 'animal',
+    guessed: 'Bengal Tiger (Panthera tigris)',
+    photo: createSpecimenCanvasPhoto('Royal Bengal Tiger', 'Panthera tigris · Apex Predator', '#245a34', '#061a0e', '🐅'),
+    time: Date.now() - 3600000 * 24 * 2,
+    lat: 28.6139,
+    lon: 77.2090,
+    uncharted: true
+  };
+
+  const starter2 = {
+    name: 'Himalayan Monal',
+    type: 'bird',
+    guessed: 'Himalayan Monal (Lophophorus impejanus)',
+    photo: createSpecimenCanvasPhoto('Himalayan Monal', 'Lophophorus impejanus · State Bird', '#184d63', '#061d29', '🦚'),
+    time: Date.now() - 3600000 * 24 * 5,
+    lat: 28.6155,
+    lon: 77.2115,
+    uncharted: false
+  };
+
+  const starter3 = {
+    name: 'Ghost Orchid',
+    type: 'flower',
+    guessed: 'Ghost Orchid (Dendrophylax lindenii)',
+    photo: createSpecimenCanvasPhoto('Ghost Orchid', 'Dendrophylax lindenii · Rare Flora', '#4a3266', '#140b21', '🌸'),
+    time: Date.now() - 3600000 * 24 * 8,
+    lat: 28.6120,
+    lon: 77.2065,
+    uncharted: true
+  };
+
+  await putAll('finds', starter1);
+  await putAll('finds', starter2);
+  await putAll('finds', starter3);
+
+  // Also seed starter GPS trail if empty so Territory has path and fog-of-war
+  const existingTrack = await getAll('track');
+  if (!existingTrack || existingTrack.length === 0) {
+    const starterTrack = [
+      { lat: 28.6110, lon: 77.2050, time: Date.now() - 3600000 * 24 * 2 },
+      { lat: 28.6120, lon: 77.2065, time: Date.now() - 3600000 * 24 * 2, uncharted: true },
+      { lat: 28.6139, lon: 77.2090, time: Date.now() - 3600000 * 24 * 2, uncharted: true },
+      { lat: 28.6155, lon: 77.2115, time: Date.now() - 3600000 * 24 * 2 }
+    ];
+    for (const pt of starterTrack) {
+      await putAll('track', pt);
+    }
+  }
 }
 
 async function boot() {
   initMapInteractions();
   init3DCardPhysics();
   initCameraControls();
-  const name = await metaGet('name');
-  if (!name) { showView('welcome'); return; }
+
+  let name = await metaGet('name');
+  if (!name) {
+    name = 'Arnav';
+    await metaSet('name', name);
+  }
+
+  const allFinds = await getAll('finds');
+  if (!allFinds || allFinds.length === 0) {
+    await seedStarterFinds();
+  }
+
   await updateTrainerChip();
   showView('capture');
-  loadTrack();
+  await loadTrack();
 }
+
 $('start-btn').onclick = async () => {
-  const name = $('name-input').value.trim() || 'Explorer';
+  const name = $('name-input').value.trim() || 'Arnav';
   await metaSet('name', name);
   await updateTrainerChip();
   showView('capture');
-  loadTrack();
+  await loadTrack();
 };
+
+if ($('empty-scan-btn')) {
+  $('empty-scan-btn').onclick = () => showView('capture');
+}
 
 // ---------- Vintage Mechanical Field Audio Engine ----------
 let audioCtx = null;
@@ -1677,7 +1825,11 @@ function openFindInSpeciesPanel(find) {
 }
 
 function openDetailModal(find) {
-  openFindInSpeciesPanel(find);
+  if (!find) return;
+  showView('collection');
+  setTimeout(() => {
+    open3DStampCard(find);
+  }, 80);
 }
 
 // ---------- Feature: Vintage Field Postcard & Herbarium Archive Card ----------
@@ -2179,6 +2331,16 @@ function updateScaleRuler(px) {
   if (labelEl) labelEl.textContent = chosenStep >= 1000 ? `${(chosenStep / 1000).toFixed(0)} km` : `${chosenStep} m`;
 }
 
+function getMapOrigin(finds = cachedFinds) {
+  if (lastPos && lastPos.lat != null) return lastPos;
+  if (track && track.length > 0 && track[0].lat != null) return track[0];
+  if (finds && finds.length > 0) {
+    const f = finds.find(item => item.lat != null && item.lon != null);
+    if (f) return { lat: f.lat, lon: f.lon };
+  }
+  return { lat: 28.6139, lon: 77.2090 };
+}
+
 function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   const cv = $('map');
   if (!cv) return;
@@ -2202,7 +2364,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
 
   const px = 2 * zoom; // pixels per metre
   const cx = cv.width / 2, cy = cv.height / 2;
-  const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
+  const origin = getMapOrigin(finds);
   const toScreen = m => ({ x: cx + panX + m.x * px, y: cy + panY - m.y * px });
   const playerScreenPos = toScreen({ x: 0, y: 0 });
 
@@ -2428,7 +2590,7 @@ async function renderMapAndStats() {
   const finds = await getAll('finds');
   cachedFinds = finds;
   cachedCells = new Set();
-  const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
+  const origin = getMapOrigin(finds);
 
   track.forEach(pt => {
     const m = project(pt, origin);
@@ -2704,7 +2866,7 @@ function initMapInteractions() {
       panX = 0;
       panY = 0;
       recenterBtn.classList.remove('recenter-active');
-      const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
+      const origin = getMapOrigin(cachedFinds);
       if (mapInstance && origin.lat !== 0) {
         mapInstance.panTo([origin.lon, origin.lat], { duration: 300 });
       }
