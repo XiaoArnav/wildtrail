@@ -184,7 +184,7 @@ flowchart TD
 - **Dynamic Fog-of-War:** Dark hexagonal grid uncovers real-world terrain as you walk outdoors.
 - **Navigation HUD:** Dynamic vision cone indicating heading, glowing GPS trail, and dynamic scale ruler.
 - **Discovery Pins:** Tap any discovery pin to open specimen details and jump directly to its Field Guide card.
-- **Offline PMTiles Maps (Experimental):** Import open vector street map archives (PMTiles format) directly into IndexedDB for offline wilderness expeditions.
+- **Offline PMTiles Maps (Experimental, in progress):** Import open vector street map archives (PMTiles format) directly into IndexedDB for offline wilderness expeditions.
 
 </details>
 
@@ -197,7 +197,7 @@ flowchart TD
 | **Interface** | HTML5, CSS Variables, Vanilla ES6+ | Zero bundler bloat, ultra-lightweight performance |
 | **Vision AI** | [Transformers.js](https://huggingface.co/docs/transformers.js) · CLIP `clip-vit-base-patch32` | 100% on-device neural image classification |
 | **Interactive Maps** | [MapLibre GL JS](https://maplibre.org/) | GPU-accelerated vector map rendering |
-| **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser (Experimental) |
+| **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser (experimental, in progress) |
 | **Local Persistence** | IndexedDB | Private storage for finds, coordinates, and offline regions |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage shutter sound |
 | **Installable App** | Service Worker (`wildtrail-v40`) · Web App Manifest | Full offline caching and standalone PWA support |

@@ -2656,15 +2656,37 @@ let pmtilesLib = null;
 let mapInstance = null;
 let activeProtocol = null;
 
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === 'true') return resolve();
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', err => reject(err));
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = () => { s.dataset.loaded = 'true'; resolve(); };
+    s.onerror = err => reject(err);
+    document.head.appendChild(s);
+  });
+}
+
 async function loadMapLibraries() {
   if (maplibreGL && pmtilesLib) return { maplibregl: maplibreGL, pmtiles: pmtilesLib };
   try {
-    const [pm, ml] = await Promise.all([
-      import('https://cdn.jsdelivr.net/npm/pmtiles@3.0.7/dist/pmtiles.js'),
-      import('https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js')
+    await Promise.all([
+      loadScript('https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/pmtiles@3.0.7/dist/pmtiles.js')
     ]);
-    pmtilesLib = window.pmtiles || pm.default || pm;
-    maplibreGL = window.maplibregl || ml.default || ml;
+    if (!window.maplibregl || !window.pmtiles) {
+      console.warn('MapLibre or PMTiles global not found after script load');
+      return null;
+    }
+    maplibreGL = window.maplibregl;
+    pmtilesLib = window.pmtiles;
     return { maplibregl: maplibreGL, pmtiles: pmtilesLib };
   } catch (err) {
     console.warn('MapLibre/PMTiles failed to load offline assets, keeping canvas fallback:', err);
@@ -2686,17 +2708,6 @@ async function checkActiveRegionMap() {
   initMapLibreWithRegion(latest);
 }
 
-function createPMTilesSource(blob, key = 'local-region') {
-  return {
-    getKey: () => key,
-    getBytes: async (offset, length) => {
-      const slice = blob.slice(offset, offset + length);
-      const buf = await slice.arrayBuffer();
-      return { data: buf };
-    }
-  };
-}
-
 async function initMapLibreWithRegion(region) {
   const libs = await loadMapLibraries();
   if (!libs) return;
@@ -2707,9 +2718,12 @@ async function initMapLibreWithRegion(region) {
     maplibregl.addProtocol('pmtiles', activeProtocol.tile);
   }
 
-  // Register the local blob as a PMTiles source
-  const p = new pmtiles.PMTiles(createPMTilesSource(region.blob, 'local-region'));
+  // Register the local blob as a PMTiles source using FileSource
+  const source = new pmtiles.FileSource(region.blob);
+  const p = new pmtiles.PMTiles(source);
   activeProtocol.add(p);
+  // Ensure local-region URL key resolves to this archive
+  activeProtocol.tiles.set('local-region', p);
 
   const container = $('maplibre-container');
   if (mapInstance) {
@@ -2817,25 +2831,34 @@ async function renderRegionsList() {
 $('import-pmtiles-input').onchange = async e => {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
-  const pos = lastPos || await getPosition() || { lat: 12.9716, lon: 77.5946 };
-  let bbox = [pos.lon - 0.15, pos.lat - 0.15, pos.lon + 0.15, pos.lat + 0.15];
 
-  // Read actual geographic bounding box from PMTiles header if available
+  const libs = await loadMapLibraries();
+  if (!libs || !libs.pmtiles) {
+    showToast('⚠️ Map engine not ready. Check your connection.');
+    e.target.value = '';
+    return;
+  }
+
+  let bbox;
   try {
-    const libs = await loadMapLibraries();
-    if (libs && libs.pmtiles) {
-      const pm = libs.pmtiles;
-      const p = new pm.PMTiles(createPMTilesSource(file, 'imported'));
-      const header = await p.getHeader();
-      if (header && header.minLon != null && header.maxLon != null) {
-        bbox = [header.minLon, header.minLat, header.maxLon, header.maxLat];
-      }
+    const pm = libs.pmtiles;
+    const source = new pm.FileSource(file);
+    const p = new pm.PMTiles(source);
+    const header = await p.getHeader();
+    if (!header || header.minLon == null || isNaN(header.minLon)) {
+      throw new Error('Invalid PMTiles header');
     }
-  } catch (_) {}
+    bbox = [header.minLon, header.minLat, header.maxLon, header.maxLat];
+  } catch (err) {
+    console.warn('Invalid PMTiles archive:', err);
+    showToast('⚠️ Selected file is not a valid PMTiles archive.');
+    e.target.value = '';
+    return;
+  }
 
   const region = {
     id: 'region-' + Date.now(),
-    name: file.name.replace('.pmtiles', '') || 'Imported Region',
+    name: file.name.replace(/\.pmtiles$/i, '') || 'Imported Region',
     bbox: bbox,
     sizeBytes: file.size,
     date: Date.now(),
