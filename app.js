@@ -2897,18 +2897,6 @@ function escapeHtml(str) {
   })[m]);
 }
 
-function updateSourceBadge(text, type = 'online') {
-  const badge = $('map-source-badge');
-  const dot = badge ? badge.querySelector('.source-status-dot') : null;
-  const label = $('map-source-text');
-  if (dot) {
-    dot.className = 'source-status-dot ' + (type === 'offline' ? 'offline' : 'online');
-  }
-  if (label) {
-    label.textContent = text;
-  }
-}
-
 function setModalStatus(text, badgeClass = 'badge-ready') {
   const badge = $('modal-status-badge');
   if (badge) {
@@ -3031,6 +3019,16 @@ async function initDefaultOnlineMap() {
     } catch (_) {}
   }
 
+  if (!navigator.onLine) {
+    currentMapMode = null;
+    setModalStatus('Not available (Offline)', 'badge-error');
+    updateActiveSourcePanel();
+    checkBoundsCoverage();
+    renderMapAndStats();
+    return;
+  }
+
+  let styleLoaded = false;
   try {
     mapInstance = new maplibregl.Map({
       container: container,
@@ -3046,17 +3044,28 @@ async function initDefaultOnlineMap() {
     const attrEl = $('map-attribution');
     if (attrEl) attrEl.innerHTML = OPENFREEMAP_ATTR;
 
-    updateSourceBadge('🌐 Online · OpenFreeMap', 'online');
     setModalStatus('Ready', 'badge-ready');
     updateActiveSourcePanel();
     checkBoundsCoverage();
 
-    mapInstance.on('load', () => renderMapAndStats());
+    mapInstance.on('load', () => {
+      styleLoaded = true;
+      renderMapAndStats();
+    });
 
     mapInstance.on('error', err => {
       console.warn('OpenFreeMap tile/style error:', err);
-      if (!navigator.onLine) {
-        updateSourceBadge('🌐 Basemap Offline (No Network)', 'online');
+      if (!styleLoaded) {
+        if (mapInstance) {
+          try { mapInstance.remove(); } catch (_) {}
+          mapInstance = null;
+        }
+        currentMapMode = null;
+        setModalStatus('Not available (Offline)', 'badge-error');
+        updateActiveSourcePanel();
+        checkBoundsCoverage();
+        renderMapAndStats();
+      } else if (!navigator.onLine) {
         setModalStatus('Not available (Offline)', 'badge-error');
       }
     });
@@ -3075,6 +3084,10 @@ async function initDefaultOnlineMap() {
     console.warn('MapLibre WebGL online initialization failed, canvas fallback active:', err);
     mapInstance = null;
     currentMapMode = null;
+    setModalStatus('Not available (Offline)', 'badge-error');
+    updateActiveSourcePanel();
+    checkBoundsCoverage();
+    renderMapAndStats();
   }
 }
 
@@ -3178,7 +3191,6 @@ async function initMapLibreWithRegion(region) {
     const attrEl = $('map-attribution');
     if (attrEl) attrEl.innerHTML = `© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · Offline Archive (${escapeHtml(region.name)})`;
 
-    updateSourceBadge(`📦 Offline · ${region.name}`, 'offline');
     setModalStatus('Available offline', 'badge-offline');
     updateActiveSourcePanel();
 
@@ -3313,7 +3325,19 @@ $('maps-manager-modal').onclick = e => {
   if (e.target === $('maps-manager-modal')) show('maps-manager-modal', false);
 };
 
-if ($('map-source-badge')) $('map-source-badge').onclick = () => openMapsManagerModal();
+window.addEventListener('online', () => {
+  if (currentMapMode === null && !activeRegion) {
+    initDefaultOnlineMap();
+  } else if (currentMapMode === 'online') {
+    setModalStatus('Ready', 'badge-ready');
+  }
+});
+
+window.addEventListener('offline', () => {
+  if (currentMapMode === 'online') {
+    setModalStatus('Not available (Offline)', 'badge-error');
+  }
+});
 $('bounds-recenter-btn').onclick = () => {
   if (activeRegion && mapInstance) {
     mapInstance.flyTo({

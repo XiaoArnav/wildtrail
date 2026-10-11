@@ -190,7 +190,7 @@ flowchart LR
 | **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Local `.pmtiles` archives persisted in IndexedDB for backcountry use |
 | **Local Persistence** | IndexedDB (`finds`, `track`, `regions`, `meta`) | Structured private storage that survives reloads and restarts |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage SLR mechanical shutter sound |
-| **PWA & Cache** | Service Worker (`wildtrail-v49`) · Web App Manifest | Full offline shell caching and standalone home-screen experience |
+| **PWA & Cache** | Service Worker (`wildtrail-v50`) · Web App Manifest | Full offline shell caching and standalone home-screen experience |
 | **Deployment** | [Vercel](https://vercel.com/) | Edge hosting without server maintenance |
 
 ---

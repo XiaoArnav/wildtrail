@@ -1568,52 +1568,6 @@ canvas#map.is-dragging {
   50% { transform: scale(1.7); opacity: 0.4; }
 }
 
-/* Map Active Source Badge & Coverage Warning */
-.map-source-badge {
-  position: absolute;
-  top: 42px;
-  left: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(6, 16, 9, 0.88);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #a7f3d0;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  z-index: 10;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.map-source-badge:hover {
-  border-color: rgba(16, 185, 129, 0.65);
-  background: rgba(10, 26, 15, 0.95);
-  transform: translateY(-1px);
-}
-
-.source-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.source-status-dot.online {
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
-}
-
-.source-status-dot.offline {
-  background: #34d399;
-  box-shadow: 0 0 8px #34d399;
-}
 
 .map-bounds-banner {
   position: absolute;
