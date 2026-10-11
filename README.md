@@ -37,7 +37,7 @@ flowchart LR
 
 | 📷 **Discover** | 📚 **Collect** | 🗺️ **Explore** |
 |:---:|:---:|:---:|
-| Identify species in milliseconds with on-device computer vision AI. | Transform outdoor finds into tactile, vintage-inspired specimen stamps. | Track your hiking trail and uncover real-world map territory as you move. |
+| Identify species directly on-device with open computer vision AI. | Transform outdoor finds into tactile, vintage-inspired specimen stamps. | Track your hiking trail and uncover real-world map territory as you move. |
 
 </div>
 
@@ -47,7 +47,7 @@ flowchart LR
 
 ### 01 · Scanner — Identify what catches your eye
 
-Point your camera, capture a specimen, and review suggested identifications with instant confidence scoring. The neural network runs entirely inside your browser's WebAssembly/WebGPU runtime, ensuring zero latency and total location privacy.
+Point your camera, capture a specimen, and review suggested identifications with confidence scoring. The neural network runs entirely inside your browser's WebAssembly/WebGPU runtime, ensuring total location privacy.
 
 <div align="center">
   <img src="screenshots/scanner.png" alt="WildTrail species scanner showing tiger identification" width="92%" />
@@ -136,7 +136,7 @@ flowchart TD
         UI <--> Storage
     end
 
-    subgraph Remote["🚫 Zero Cloud Dependencies"]
+    subgraph Remote["🌐 Loads Libraries & AI Model on First Use · Works Offline Thereafter"]
         NoServer["❌ No Backend Server"]
         NoDB["❌ No Cloud Database"]
         NoTrack["❌ No Analytics or Tracking"]
@@ -146,8 +146,8 @@ flowchart TD
 <details open>
 <summary><b>🔐 Privacy & Storage Guarantees</b></summary>
 
+* **Zero telemetry & 100% on-device inference:** After initial first-load library and model caching (~90 MB), all AI vision inference, GPS tracking, and specimen data run entirely client-side on your device. Zero photos or coordinates are ever sent to remote servers.
 * **No Accounts or Logins:** Start exploring immediately without entering an email, password, or third-party OAuth.
-* **On-Device Inference:** Vision inference runs locally inside browser memory. Photos are never uploaded to remote cloud APIs.
 * **100% Private Coordinates:** GPS location is processed purely on-device to reveal local fog-of-war.
 * **Complete Data Ownership:** Export your entire journal and trail history as a single JSON file, or wipe local storage with one click.
 
@@ -184,7 +184,7 @@ flowchart TD
 - **Dynamic Fog-of-War:** Dark hexagonal grid uncovers real-world terrain as you walk outdoors.
 - **Navigation HUD:** Dynamic vision cone indicating heading, glowing GPS trail, and dynamic scale ruler.
 - **Discovery Pins:** Tap any discovery pin to open specimen details and jump directly to its Field Guide card.
-- **Offline PMTiles Maps:** Import open vector street map archives (PMTiles format) directly into IndexedDB for offline wilderness expeditions.
+- **Offline PMTiles Maps (Experimental):** Import open vector street map archives (PMTiles format) directly into IndexedDB for offline wilderness expeditions.
 
 </details>
 
@@ -197,10 +197,10 @@ flowchart TD
 | **Interface** | HTML5, CSS Variables, Vanilla ES6+ | Zero bundler bloat, ultra-lightweight performance |
 | **Vision AI** | [Transformers.js](https://huggingface.co/docs/transformers.js) · CLIP `clip-vit-base-patch32` | 100% on-device neural image classification |
 | **Interactive Maps** | [MapLibre GL JS](https://maplibre.org/) | GPU-accelerated vector map rendering |
-| **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser |
+| **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser (Experimental) |
 | **Local Persistence** | IndexedDB | Private storage for finds, coordinates, and offline regions |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage shutter sound |
-| **Installable App** | Service Worker (`wildtrail-v38`) · Web App Manifest | Full offline caching and standalone PWA support |
+| **Installable App** | Service Worker (`wildtrail-v39`) · Web App Manifest | Full offline caching and standalone PWA support |
 | **Hosting & Edge** | [Vercel](https://vercel.com/) | Continuous deployment with zero server maintenance |
 
 ---
@@ -253,6 +253,7 @@ Then visit **`http://localhost:8000`** in your browser.
 
 ## 🗺️ Roadmap
 
+- [ ] Automatic offline map download around the user's location, with explicit consent (planned).
 - [ ] Extended species taxonomy catalogue and identification guides.
 - [ ] Richer field notes, weather telemetry, and observation journals.
 - [ ] Multi-region offline map package selector.

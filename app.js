@@ -1282,7 +1282,7 @@ function getLocationAndDate(find) {
     year: 'numeric'
   }).toUpperCase();
 
-  let location = 'WILDTRAIL';
+  let location = 'FIELD ENCOUNTER';
   if (find.lat != null && find.lon != null) {
     const lat = find.lat;
     const lon = find.lon;
@@ -1295,7 +1295,7 @@ function getLocationAndDate(find) {
     else if (lat >= 18.4 && lat <= 18.7 && lon >= 73.7 && lon <= 74.0) location = 'PUNE';
     else if (lat >= 26.8 && lat <= 27.1 && lon >= 75.6 && lon <= 76.0) location = 'JAIPUR';
     else if (lat >= 8.0 && lat <= 37.0 && lon >= 68.0 && lon <= 97.0) location = 'INDIA';
-    else location = 'WILDTRAIL';
+    else location = 'FIELD ENCOUNTER';
   }
   return { location, date: dateStr };
 }
@@ -1963,11 +1963,7 @@ async function onPos(p) {
   if (regions.length > 0) {
     if (prox.isInsideAny && prox.distanceMeters <= 1000) {
       if (sessionStorage.getItem('edge_prompt_dismissed') !== 'true') {
-        if (!navigator.onLine) {
-          $('edge-banner-text').textContent = "You're nearing uncharted ground. (Offline right now — we'll remind you when online).";
-        } else {
-          $('edge-banner-text').textContent = "You're nearing uncharted ground. Download the map for this area?";
-        }
+        $('edge-banner-text').textContent = "Uncharted Territory: Venturing beyond mapped paths. Keep exploring to reveal fog-of-war!";
         show('edge-banner', true);
       }
     } else {
