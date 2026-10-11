@@ -3178,6 +3178,7 @@ async function deactivateToOnline() {
   activeRegion = null;
   await initDefaultOnlineMap();
   await renderRegionsList();
+  await updateStorageStats();
   renderMapAndStats();
   showToast('🌐 Switched to OpenFreeMap online basemap');
   show('maps-manager-modal', false);
@@ -3193,11 +3194,11 @@ async function deleteRegion(regionId) {
   if (!confirmed) return;
 
   await delOne('regions', reg.id);
+  await updateStorageStats();
   if (activeRegion && activeRegion.id === reg.id) {
     await deactivateToOnline();
   } else {
     await renderRegionsList();
-    await updateStorageStats();
   }
   showToast(`🗑️ Removed offline map archive: ${reg.name}`);
 }
