@@ -1234,8 +1234,7 @@ async function renderVintagePostcard(find) {
   const trainer = (await metaGet('name')) || 'Trail Naturalist';
   g.fillText(`👤 Observer: ${trainer}`, 85, 838);
 
-  const rankBadge = $('player-rank')?.textContent || 'Scout Lv. 1';
-  g.fillText(`🎖️ Rank: ${rankBadge}`, 85, 862);
+  g.fillText(`🌿 Specimen #${(find.id || 1)}`, 85, 862);
 
   // 7. Vintage Red Postal Rubber Stamp (Center-Right)
   g.save();
@@ -1536,44 +1535,7 @@ function project(pt, origin) { // metres east/north of origin
   return { x: (pt.lon - origin.lon) * k * Math.cos(origin.lat * Math.PI / 180), y: (pt.lat - origin.lat) * k };
 }
 
-function updateExpeditionHUD(cellsCount, unchartedCount, findsCount) {
-  const distanceXp = Math.floor(totalMeters / 10);
-  const cellXp = cellsCount * 10;
-  const unchartedXp = unchartedCount * 25;
-  const findXp = findsCount * 50;
-  const currentXp = distanceXp + cellXp + unchartedXp + findXp;
 
-  const RANKS = [
-    { title: 'Trail Novice', badge: 'Scout Lv. 1', max: 150 },
-    { title: 'Pathfinder', badge: 'Scout Lv. 2', max: 350 },
-    { title: 'Field Ranger', badge: 'Ranger Lv. 3', max: 700 },
-    { title: 'Wilderness Tracker', badge: 'Tracker Lv. 4', max: 1200 },
-    { title: 'Master Naturalist', badge: 'Botanist Lv. 5', max: 2000 },
-    { title: 'Mythic Explorer', badge: 'Legend Lv. 6', max: 3500 }
-  ];
-
-  let rankIdx = 0;
-  let prevThreshold = 0;
-  for (let i = 0; i < RANKS.length; i++) {
-    if (currentXp >= RANKS[i].max && i < RANKS.length - 1) {
-      prevThreshold = RANKS[i].max;
-      rankIdx = i + 1;
-    } else {
-      break;
-    }
-  }
-
-  const currentRank = RANKS[rankIdx];
-  const nextThreshold = currentRank.max;
-  const xpIntoRank = Math.max(0, currentXp - prevThreshold);
-  const xpNeeded = Math.max(1, nextThreshold - prevThreshold);
-  const pct = Math.min(100, Math.max(0, (xpIntoRank / xpNeeded) * 100));
-
-  if ($('player-rank')) $('player-rank').textContent = currentRank.badge;
-  if ($('player-title')) $('player-title').textContent = currentRank.title;
-  if ($('player-xp-bar')) $('player-xp-bar').style.width = `${pct.toFixed(1)}%`;
-  if ($('player-xp-text')) $('player-xp-text').textContent = `${currentXp} / ${nextThreshold} XP`;
-}
 
 function updateScaleRuler(px) {
   const rawMeters = 50 / px;
@@ -1876,7 +1838,6 @@ async function renderMapAndStats() {
     d.append(b, s); $('stats').appendChild(d);
   });
 
-  updateExpeditionHUD(cachedCells.size, unchartedCells.size, finds.length);
   drawMapCanvas(cachedFinds, cachedCells);
 }
 
