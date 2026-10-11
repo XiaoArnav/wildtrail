@@ -1,7 +1,7 @@
 // Caches the app shell and vendor libraries so WildTrail works offline.
 // (Model weights are cached by Transformers.js in browser Cache Storage.
 // Offline vector map regions are stored in IndexedDB as .pmtiles archives.)
-const CACHE = 'wildtrail-v46';
+const CACHE = 'wildtrail-v47';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'shutter.wav'];
 const EXTERNAL_ASSETS = [
   'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css',
@@ -28,6 +28,9 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+  const isMapArchive = url.pathname.includes('/maps/') || url.pathname.endsWith('.pmtiles');
+  if (isMapArchive) return; // Do not duplicate PMTiles archives into Cache Storage (they are stored directly in IndexedDB)
+
   const mine = url.origin === location.origin;
   const lib = url.hostname === 'cdn.jsdelivr.net';
   if (e.request.method !== 'GET' || !(mine || lib)) return;

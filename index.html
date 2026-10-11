@@ -335,9 +335,44 @@
         </button>
       </div>
 
+      <!-- Section: Downloadable Wilderness Packs -->
+      <div class="packs-section-header">
+        <h4>⭐ Available Wilderness Packs</h4>
+        <span class="pack-badge-pill">1-Click Install</span>
+      </div>
+
+      <div class="featured-packs-grid" id="featured-packs-grid">
+        <!-- Pack Card: Botanical & Nature Reserve -->
+        <div class="pack-card" id="pack-card-botanical">
+          <div class="pack-card-header">
+            <div class="pack-title-wrap">
+              <span class="pack-icon">🌿</span>
+              <div>
+                <b>Taipei Botanical Reserve</b>
+                <span class="pack-sub">Nature trails, canopy gardens & terrain</span>
+              </div>
+            </div>
+            <span class="pack-size-pill">6.7 MB</span>
+          </div>
+          <div class="pack-meta-row">
+            <span>🗺️ Topo & Trails (z0–z21)</span>
+            <span>📱 100% Offline</span>
+          </div>
+          <div class="pack-dl-progress hidden" id="pack-progress-wrap-botanical">
+            <div class="pack-progress-bar">
+              <div class="pack-progress-fill" id="pack-progress-fill-botanical" style="width: 0%;"></div>
+            </div>
+            <div class="pack-progress-text" id="pack-progress-text-botanical">Connecting...</div>
+          </div>
+          <button id="pack-dl-btn-botanical" class="primary small-btn full-width pack-action-btn" type="button">
+            ⬇️ Download to Device (Free)
+          </button>
+        </div>
+      </div>
+
       <!-- Section: Imported Map Archives -->
       <div class="archives-section-header">
-        <h4>Imported Map Archives</h4>
+        <h4>Installed Map Archives</h4>
         <span id="archives-count-pill" class="count-pill">0 archives</span>
       </div>
 
@@ -345,18 +380,25 @@
 
       <div id="no-regions-msg" class="empty-state">
         <span class="empty-icon">🏔️</span>
-        <p><b>No offline map archives installed.</b><br>Currently rendering online vector tiles via OpenFreeMap. Import an open <code>.pmtiles</code> archive to explore remote wilderness zones offline.</p>
+        <p><b>No offline map archives installed yet.</b><br>Download the featured pack above with 1 click, or import an open <code>.pmtiles</code> file from your device.</p>
       </div>
 
       <!-- Actions -->
       <div class="maps-manager-actions">
-        <label class="file-import-btn primary full-width">
-          <span>📂 Import .pmtiles Archive</span>
+        <label class="file-import-btn glass-btn full-width">
+          <span>📂 Import .pmtiles from Device</span>
           <input type="file" id="import-pmtiles-input" accept=".pmtiles" style="display:none;">
         </label>
-        <p class="import-disclaimer">
-          Supports standard PMTiles v3 vector (MVT) and raster archives. Files remain strictly on your device inside IndexedDB.
-        </p>
+        
+        <!-- Collapsible Custom URL Download -->
+        <details class="custom-url-details">
+          <summary class="custom-url-summary">🔗 Or Download by Direct .pmtiles URL</summary>
+          <div class="custom-url-box">
+            <input type="url" id="custom-pmtiles-url" class="custom-url-input" placeholder="https://example.com/region.pmtiles" aria-label="Direct PMTiles URL">
+            <button id="custom-url-dl-btn" class="primary small-btn" type="button">Fetch</button>
+          </div>
+          <p class="custom-url-hint">Downloads any public, CORS-enabled PMTiles archive directly into browser storage.</p>
+        </details>
       </div>
     </div>
   </div>

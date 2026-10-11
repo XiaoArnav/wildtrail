@@ -3410,6 +3410,192 @@ async function renderRegionsList() {
     item.append(headerRow, metaGrid, actionsRow);
     list.appendChild(item);
   });
+
+  // Update Featured Packs Installed Status
+  const botanicalBtn = $('pack-dl-btn-botanical');
+  const botanicalCard = $('pack-card-botanical');
+  const isBotanicalInstalled = regions.some(r => /botanical/i.test(r.name) || r.id.includes('botanical'));
+  if (botanicalBtn) {
+    if (isBotanicalInstalled) {
+      botanicalBtn.textContent = '✓ Installed on Device';
+      botanicalBtn.disabled = true;
+      botanicalBtn.className = 'glass-btn small-btn full-width pack-action-btn';
+      if (botanicalCard) botanicalCard.classList.add('is-installed');
+    } else {
+      botanicalBtn.textContent = '⬇️ Download to Device (Free)';
+      botanicalBtn.disabled = false;
+      botanicalBtn.className = 'primary small-btn full-width pack-action-btn';
+      if (botanicalCard) botanicalCard.classList.remove('is-installed');
+    }
+  }
+}
+
+// ---------- 1-Click In-App Map Downloader Engine ----------
+async function downloadMapFromUrl(url, defaultName, progressWrapEl, progressFillEl, progressTextEl, dlBtnEl) {
+  if (dlBtnEl) dlBtnEl.disabled = true;
+  if (progressWrapEl) progressWrapEl.classList.remove('hidden');
+  if (progressFillEl) progressFillEl.style.width = '6%';
+  if (progressTextEl) progressTextEl.textContent = 'Connecting to download stream...';
+
+  setModalStatus('Downloading', 'badge-importing');
+
+  try {
+    const libs = await loadMapLibraries();
+    if (!libs || !libs.pmtiles) {
+      throw new Error('Map engine not ready. Check your connection.');
+    }
+    const pm = libs.pmtiles;
+
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      throw new Error(`Download server returned HTTP ${resp.status} ${resp.statusText}`);
+    }
+
+    const totalBytes = Number(resp.headers.get('content-length')) || 0;
+    const reader = resp.body.getReader();
+    let receivedBytes = 0;
+    const chunks = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      receivedBytes += value.length;
+
+      if (totalBytes > 0) {
+        const pct = Math.min(100, (receivedBytes / totalBytes) * 100);
+        if (progressFillEl) progressFillEl.style.width = pct.toFixed(1) + '%';
+        if (progressTextEl) {
+          progressTextEl.textContent = `Downloading: ${pct.toFixed(0)}% (${(receivedBytes / 1024 / 1024).toFixed(1)} / ${(totalBytes / 1024 / 1024).toFixed(1)} MB)`;
+        }
+      } else {
+        if (progressFillEl) progressFillEl.style.width = '65%';
+        if (progressTextEl) {
+          progressTextEl.textContent = `Downloading: ${(receivedBytes / 1024 / 1024).toFixed(1)} MB received...`;
+        }
+      }
+    }
+
+    if (progressTextEl) progressTextEl.textContent = 'Verifying map archive header...';
+    if (progressFillEl) progressFillEl.style.width = '100%';
+
+    const blob = new Blob(chunks, { type: 'application/octet-stream' });
+    const source = new pm.FileSource(blob);
+    const p = new pm.PMTiles(source);
+    const header = await p.getHeader();
+
+    if (!header || header.minLon == null || isNaN(header.minLon)) {
+      throw new Error('Downloaded file is not a valid PMTiles archive');
+    }
+
+    let metadata = null;
+    try {
+      metadata = await p.getMetadata();
+    } catch (_) {
+      metadata = null;
+    }
+
+    const bbox = [header.minLon, header.minLat, header.maxLon, header.maxLat];
+    const centerLon = header.centerLon || (header.minLon + header.maxLon) / 2;
+    const centerLat = header.centerLat || (header.minLat + header.maxLat) / 2;
+    const centerZoom = header.centerZoom || Math.round((header.minZoom + header.maxZoom) / 2);
+
+    let layers = [];
+    if (metadata && Array.isArray(metadata.vector_layers)) {
+      layers = metadata.vector_layers.map(l => l.id || l.name).filter(Boolean);
+    }
+
+    const tileTypeLabel = header.tileType === 1 ? 'Vector (MVT)' : 'Raster Tiles';
+
+    const region = {
+      id: 'pmtiles-' + (defaultName.toLowerCase().replace(/[^a-z0-9]/g, '-') || Date.now()),
+      name: defaultName,
+      filename: defaultName + '.pmtiles',
+      bbox: bbox,
+      center: [centerLon, centerLat, centerZoom],
+      minZoom: header.minZoom,
+      maxZoom: header.maxZoom,
+      tileType: header.tileType,
+      tileTypeLabel: tileTypeLabel,
+      layers: layers,
+      sizeBytes: blob.size,
+      date: Date.now(),
+      blob: blob
+    };
+
+    await putAll('regions', region);
+    await metaSet('active_map_region', region.id);
+    await updateStorageStats();
+    await renderRegionsList();
+    await initMapLibreWithRegion(region);
+    renderMapAndStats();
+
+    setModalStatus('Available offline', 'badge-offline');
+    showToast(`🗺️ "${region.name}" downloaded & ready offline!`);
+
+    if (dlBtnEl) {
+      dlBtnEl.textContent = '✓ Installed on Device';
+      dlBtnEl.disabled = true;
+      dlBtnEl.className = 'glass-btn small-btn full-width pack-action-btn';
+    }
+  } catch (err) {
+    console.error('Download map failed:', err);
+    setModalStatus('Error', 'badge-error');
+    if (progressTextEl) progressTextEl.textContent = 'Download failed: ' + err.message;
+    showToast(`⚠️ Could not download map: ${err.message}`);
+    if (dlBtnEl) {
+      dlBtnEl.disabled = false;
+      dlBtnEl.textContent = 'Retry Download 🔄';
+    }
+  } finally {
+    setTimeout(() => {
+      if (progressWrapEl) progressWrapEl.classList.add('hidden');
+    }, 2800);
+  }
+}
+
+// 1-Click Download featured pack
+const dlBotanicalBtn = $('pack-dl-btn-botanical');
+if (dlBotanicalBtn) {
+  dlBotanicalBtn.onclick = () => {
+    downloadMapFromUrl(
+      './maps/taipei-botanical-reserve.pmtiles',
+      'Taipei Botanical Reserve',
+      $('pack-progress-wrap-botanical'),
+      $('pack-progress-fill-botanical'),
+      $('pack-progress-text-botanical'),
+      dlBotanicalBtn
+    );
+  };
+}
+
+// Custom URL download
+const customDlBtn = $('custom-url-dl-btn');
+if (customDlBtn) {
+  customDlBtn.onclick = async () => {
+    const input = $('custom-pmtiles-url');
+    const url = input ? input.value.trim() : '';
+    if (!url) {
+      showToast('⚠️ Please enter a valid PMTiles URL');
+      return;
+    }
+    let defaultName = 'Custom Offline Map';
+    try {
+      const u = new URL(url);
+      const seg = u.pathname.split('/').pop().replace(/\.pmtiles$/i, '');
+      if (seg) defaultName = decodeURIComponent(seg);
+    } catch (_) {}
+
+    customDlBtn.disabled = true;
+    customDlBtn.textContent = 'Fetching...';
+    try {
+      await downloadMapFromUrl(url, defaultName, null, null, null, customDlBtn);
+      if (input) input.value = '';
+    } finally {
+      customDlBtn.disabled = false;
+      customDlBtn.textContent = 'Fetch';
+    }
+  };
 }
 
 // File import for .pmtiles archives (Authentic, genuine offline vector maps)
