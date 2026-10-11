@@ -2686,6 +2686,17 @@ async function checkActiveRegionMap() {
   initMapLibreWithRegion(latest);
 }
 
+function createPMTilesSource(blob, key = 'local-region') {
+  return {
+    getKey: () => key,
+    getBytes: async (offset, length) => {
+      const slice = blob.slice(offset, offset + length);
+      const buf = await slice.arrayBuffer();
+      return { data: buf };
+    }
+  };
+}
+
 async function initMapLibreWithRegion(region) {
   const libs = await loadMapLibraries();
   if (!libs) return;
@@ -2697,7 +2708,7 @@ async function initMapLibreWithRegion(region) {
   }
 
   // Register the local blob as a PMTiles source
-  const p = new pmtiles.PMTiles(new pmtiles.BlobSource(region.blob));
+  const p = new pmtiles.PMTiles(createPMTilesSource(region.blob, 'local-region'));
   activeProtocol.add(p);
 
   const container = $('maplibre-container');
@@ -2811,8 +2822,10 @@ $('import-pmtiles-input').onchange = async e => {
 
   // Read actual geographic bounding box from PMTiles header if available
   try {
-    if (window.pmtiles && pmtiles.PMTiles) {
-      const p = new pmtiles.PMTiles(new pmtiles.BlobSource(file));
+    const libs = await loadMapLibraries();
+    if (libs && libs.pmtiles) {
+      const pm = libs.pmtiles;
+      const p = new pm.PMTiles(createPMTilesSource(file, 'imported'));
       const header = await p.getHeader();
       if (header && header.minLon != null && header.maxLon != null) {
         bbox = [header.minLon, header.minLat, header.maxLon, header.maxLat];
