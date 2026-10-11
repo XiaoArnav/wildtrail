@@ -185,8 +185,9 @@ flowchart TD
 - **Dynamic Compass & Flashlight Beam:** Google Maps-style field of view beam that rotates dynamically in real-time with device compass orientation and GPS movement.
 - **Two-Finger Map Rotation:** Smooth multi-touch gesture to rotate the map bearing, with an interactive compass HUD button to snap back to North-up.
 - **Dynamic Fog-of-War:** Uncovers terrain in 20m cells as you physically explore outdoors.
-- **Navigation HUD:** Vision cone indicating heading, glowing GPS trail, dynamic scale ruler, and active map source indicator badge.
+- **Navigation HUD:** Dynamic vision cone indicating heading, glowing GPS trail, dynamic metric scale ruler, and North-up compass needle.
 - **Discovery Pins:** Tap any discovery pin to open specimen details and jump directly to its Field Guide card.
+- **1-Click Wilderness Pack Downloader:** Download self-contained wilderness maps (like Taipei Botanical Reserve, 6.7 MB) directly inside the app with real-time streaming progress, persistent IndexedDB storage, and zero external downloads needed.
 - **Offline Vector Maps (PMTiles):** Full offline vector and raster mapping powered by local `.pmtiles` archives stored in browser IndexedDB. Features storage quota management, archive inspection, bounds warning, and zero-network map rendering.
 
 </details>
