@@ -278,23 +278,19 @@ let currentVideoTrack = null;
 let isTorchOn = false;
 let currentCameraZoom = 1.0;
 let focusReticleTimer = null;
-let zoomDialHideTimer = null;
 let isCameraPinching = false;
 let touchStartPinchDist = 0;
 let touchStartCameraZoom = 1.0;
 let lastPinchTime = 0;
 
-function showZoomDialTemporarily() {
-  const wrap = $('zoom-dial-slider-wrap');
-  if (!wrap) return;
-  wrap.classList.remove('hidden');
-  clearTimeout(zoomDialHideTimer);
-  zoomDialHideTimer = setTimeout(() => {
-    wrap.classList.add('hidden');
-  }, 3200);
-}
+// Gesture-Attached Zoom Variables
+let isSlidingZoom = false;
+let zoomStartX = 0;
+let zoomStartLevel = 1.0;
+let zoomTotalMoved = 0;
+let lastHapticStep = 1.0;
 
-function setCameraZoom(z, syncSlider = true) {
+function setCameraZoom(z) {
   // Always strictly clamped between 1.0x and 5.0x so video ALWAYS fills viewfinder (zero black bars!)
   const clamped = Math.min(5.0, Math.max(1.0, Math.round(z * 10) / 10));
   currentCameraZoom = clamped;
@@ -311,14 +307,6 @@ function setCameraZoom(z, syncSlider = true) {
   if ($('zoom-badge-btn')) {
     $('zoom-badge-btn').classList.toggle('zoomed', clamped > 1.05);
   }
-  if (syncSlider && $('zoom-slider')) {
-    $('zoom-slider').value = clamped;
-  }
-
-  document.querySelectorAll('.zoom-dial-mark').forEach(btn => {
-    const val = parseFloat(btn.dataset.val);
-    btn.classList.toggle('active', Math.abs(val - clamped) < 0.15);
-  });
 
   // Try applying hardware optical/digital zoom if camera sensor supports it
   if (currentVideoTrack) {
@@ -341,8 +329,8 @@ function initCameraControls() {
   // 1. Botanical Emerald & Gold Tap-to-Focus Reticle
   v.addEventListener('click', async e => {
     if (!stream) return;
-    // Prevent focus trigger if user was just pinching or clicking controls
-    if (Date.now() - lastPinchTime < 350) return;
+    // Prevent focus trigger if user was just pinching, sliding zoom, or clicking controls
+    if (Date.now() - lastPinchTime < 350 || isSlidingZoom) return;
     if (e.target.closest('#camera-zoom-container') || e.target.closest('.viewfinder-top-bar')) return;
 
     const rect = v.getBoundingClientRect();
@@ -383,7 +371,6 @@ function initCameraControls() {
       e.preventDefault();
       const delta = e.deltaY < 0 ? 0.2 : -0.2;
       setCameraZoom(currentCameraZoom + delta);
-      showZoomDialTemporarily();
       if ('vibrate' in navigator) navigator.vibrate(10);
     }, { passive: false });
 
@@ -398,7 +385,6 @@ function initCameraControls() {
           e.touches[0].clientY - e.touches[1].clientY
         );
         touchStartCameraZoom = currentCameraZoom;
-        showZoomDialTemporarily();
       }
     }, { passive: false });
 
@@ -424,40 +410,83 @@ function initCameraControls() {
     });
   }
 
-  // 4. iPhone Zoom Badge Button (Tap toggles 1.0x <-> 2.0x, click reveals slider)
-  if ($('zoom-badge-btn')) {
-    $('zoom-badge-btn').onclick = e => {
-      e.stopPropagation();
+  // 4. Modern Finger-Attached Slide Left/Right Zoom Controller
+  const zoomTrack = $('zoom-gesture-track');
+  if (zoomTrack) {
+    const onStart = e => {
+      isSlidingZoom = true;
+      lastPinchTime = Date.now();
+      const pt = e.touches ? e.touches[0] : e;
+      zoomStartX = pt.clientX;
+      zoomStartLevel = currentCameraZoom;
+      zoomTotalMoved = 0;
+      lastHapticStep = Math.round(currentCameraZoom * 2) / 2;
+      zoomTrack.classList.add('is-sliding');
       warmUpAudio();
-      if ('vibrate' in navigator) navigator.vibrate(15);
-      if (currentCameraZoom > 1.1) {
-        setCameraZoom(1.0);
-      } else {
-        setCameraZoom(2.0);
+    };
+
+    const onMove = e => {
+      if (!isSlidingZoom) return;
+      lastPinchTime = Date.now();
+      const pt = e.touches ? e.touches[0] : e;
+      const deltaX = pt.clientX - zoomStartX;
+      zoomTotalMoved = Math.abs(deltaX);
+
+      // Moving right increases zoom, moving left decreases zoom (~42px per 1.0x change)
+      const targetZoom = zoomStartLevel + (deltaX / 42);
+      setCameraZoom(targetZoom);
+
+      // Subtle haptic tick when crossing 0.5x thresholds
+      const currentStep = Math.round(currentCameraZoom * 2) / 2;
+      if (currentStep !== lastHapticStep) {
+        lastHapticStep = currentStep;
+        if ('vibrate' in navigator) navigator.vibrate(8);
       }
-      showZoomDialTemporarily();
     };
-  }
 
-  // 5. iPhone Zoom Slider Input
-  if ($('zoom-slider')) {
-    $('zoom-slider').oninput = e => {
-      setCameraZoom(parseFloat(e.target.value), false);
-      showZoomDialTemporarily();
-    };
-  }
+    const onEnd = e => {
+      if (!isSlidingZoom) return;
+      isSlidingZoom = false;
+      lastPinchTime = Date.now();
+      zoomTrack.classList.remove('is-sliding');
 
-  // 6. iPhone Zoom Ruler Marks (1x, 2x, 3x, 5x)
-  document.querySelectorAll('.zoom-dial-mark').forEach(btn => {
-    btn.onclick = e => {
-      e.stopPropagation();
-      warmUpAudio();
-      const targetVal = parseFloat(btn.dataset.val);
-      setCameraZoom(targetVal);
-      showZoomDialTemporarily();
-      if ('vibrate' in navigator) navigator.vibrate(15);
+      // If finger moved less than 6px, treat as a quick tap to toggle 1.0x <-> 2.0x
+      if (zoomTotalMoved < 6) {
+        if ('vibrate' in navigator) navigator.vibrate(15);
+        if (currentCameraZoom > 1.1) {
+          setCameraZoom(1.0);
+        } else {
+          setCameraZoom(2.0);
+        }
+      }
     };
-  });
+
+    // Touch events for mobile phones
+    zoomTrack.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', e => {
+      if (isSlidingZoom) onMove(e);
+    }, { passive: true });
+    window.addEventListener('touchend', e => {
+      if (isSlidingZoom) onEnd(e);
+    });
+
+    // Pointer/Mouse events for desktop
+    zoomTrack.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') {
+        onStart(e);
+        zoomTrack.setPointerCapture?.(e.pointerId);
+      }
+    });
+    zoomTrack.addEventListener('pointermove', e => {
+      if (e.pointerType === 'mouse' && isSlidingZoom) onMove(e);
+    });
+    zoomTrack.addEventListener('pointerup', e => {
+      if (e.pointerType === 'mouse' && isSlidingZoom) {
+        try { zoomTrack.releasePointerCapture?.(e.pointerId); } catch (_) {}
+        onEnd(e);
+      }
+    });
+  }
 
   // 7. Hardware Torch / Flashlight Toggle
   if ($('torch-btn')) {

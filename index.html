@@ -107,23 +107,15 @@
             <div class="corner bl"></div>
             <div class="corner br"></div>
             
-            <!-- iPhone-Style Fluid Zoom Scroller & Badge -->
+            <!-- Modern Gesture-Attached Zoom Controller (Slide Finger Left/Right) -->
             <div class="camera-zoom-container" id="camera-zoom-container">
-              <div class="zoom-dial-slider-wrap hidden" id="zoom-dial-slider-wrap">
-                <div class="zoom-dial-ruler">
-                  <button type="button" class="zoom-dial-mark" data-val="1.0">1x</button>
-                  <span class="zoom-dial-dot">·</span>
-                  <button type="button" class="zoom-dial-mark" data-val="2.0">2x</button>
-                  <span class="zoom-dial-dot">·</span>
-                  <button type="button" class="zoom-dial-mark" data-val="3.0">3x</button>
-                  <span class="zoom-dial-dot">·</span>
-                  <button type="button" class="zoom-dial-mark" data-val="5.0">5x</button>
-                </div>
-                <input type="range" id="zoom-slider" min="1.0" max="5.0" step="0.1" value="1.0" class="zoom-slider-input" aria-label="Camera Zoom">
+              <div class="zoom-gesture-track" id="zoom-gesture-track" title="Slide finger left/right to zoom, or tap to toggle">
+                <span class="zoom-track-cue left">‹</span>
+                <button type="button" id="zoom-badge-btn" class="zoom-badge-btn" aria-label="Camera Zoom Level">
+                  <span id="zoom-badge-val">1.0x</span>
+                </button>
+                <span class="zoom-track-cue right">›</span>
               </div>
-              <button type="button" id="zoom-badge-btn" class="zoom-badge-btn" title="Tap to toggle 1x/2x, drag slider or scroll mouse wheel">
-                <span id="zoom-badge-val">1.0x</span>
-              </button>
             </div>
           </div>
           <div id="cam-msg">Camera is off</div>
