@@ -137,6 +137,91 @@ $('start-btn').onclick = async () => {
   loadTrack();
 };
 
+// ---------- Retro Field Audio Engine (Web Audio API) ----------
+let audioCtx = null;
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) audioCtx = new AudioContextClass();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  return audioCtx;
+}
+
+function playShutterSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+
+    // Helper for crisp mechanical camera shutter click
+    const createClick = (startTime, freq) => {
+      const bufferSize = Math.floor(ctx.sampleRate * 0.02);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.setValueAtTime(freq, startTime);
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.4, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.025);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start(startTime);
+
+      // Metallic blade resonance
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq * 0.75, startTime);
+      oscGain.gain.setValueAtTime(0.2, startTime);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.018);
+      osc.connect(oscGain);
+      oscGain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.02);
+    };
+
+    // Shutter blade opening click
+    createClick(t, 2600);
+    // Shutter blade closing click 45ms later
+    createClick(t + 0.045, 1800);
+  } catch (_) {}
+}
+
+function playDiscoveryChime() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // Nostalgic nature discovery arpeggio (C5 - E5 - G5 - C6)
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      const start = t + i * 0.08;
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.12, start);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.36);
+    });
+  } catch (_) {}
+}
+
 // ---------- Camera (iPhone High-Resolution + Native Sensor Controls) ----------
 let stream = null;
 let currentVideoTrack = null;
@@ -237,6 +322,7 @@ function initCameraControls() {
       const file = e.target.files?.[0];
       if (!file) return;
 
+      playShutterSound();
       if ('vibrate' in navigator) navigator.vibrate([25, 20, 35]);
 
       const reader = new FileReader();
@@ -391,10 +477,11 @@ $('snap-btn').onclick = async () => {
   const flash = $('shutter-flash');
   if (flash) {
     flash.classList.add('flash-active');
-    setTimeout(() => flash.classList.remove('flash-active'), 120);
+    setTimeout(() => flash.classList.remove('flash-active'), 80);
   }
 
-  // 2. Crisp mechanical shutter haptic tap
+  // 2. Crisp mechanical shutter click sound & haptic tap
+  playShutterSound();
   if ('vibrate' in navigator) navigator.vibrate([25, 20, 35]);
 
   // 3. High-Resolution Sensor Capture
@@ -506,6 +593,7 @@ $('save-btn').onclick = async () => {
   if (!pending) return;
   const name = $('name-field').value.trim();
   if (!name) { $('name-field').focus(); return; }
+  playDiscoveryChime();
   if ('vibrate' in navigator) navigator.vibrate([40, 50, 80]);
   const pos = lastPos || await getPosition();
   await putAll('finds', {
