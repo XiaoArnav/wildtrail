@@ -1042,7 +1042,7 @@ function warmModel() {
   if (classifierP) return classifierP;
   $('model-status').textContent = 'Loading the identification model (first time only)...';
   classifierP = (async () => {
-    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3');
+    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1');
     env.allowLocalModels = false;
     const pipe = await pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32', {
       progress_callback: p => {
@@ -3592,7 +3592,7 @@ if (dlBotanicalBtn) {
   dlBotanicalBtn.onclick = () => {
     downloadMapFromUrl(
       './maps/taipei-botanical-reserve.pmtiles',
-      'Taipei Botanical Reserve',
+      'Demo pack: Taipei Botanical Reserve (~300 m area)',
       $('pack-progress-wrap-botanical'),
       $('pack-progress-fill-botanical'),
       $('pack-progress-text-botanical'),

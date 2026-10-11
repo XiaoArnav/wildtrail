@@ -324,7 +324,7 @@
         <span class="consent-icon">🗺️</span>
         <div>
           <h3 id="maps-modal-heading">Offline Vector Maps</h3>
-          <p class="modal-subtitle">Self-contained .pmtiles archives stored locally for zero-network field navigation.</p>
+          <p class="modal-subtitle">Self-contained .pmtiles archives stored locally for offline field navigation.</p>
         </div>
       </div>
 
@@ -353,6 +353,7 @@
           Use Online Map 🌐
         </button>
       </div>
+      <p class="modal-privacy-hint" style="font-size: 11px; color: var(--muted); margin: 6px 0 12px; line-height: 1.4;">The default basemap loads tiles from OpenFreeMap (they can see your IP and map area). Offline packs avoid this.</p>
 
       <!-- Section: Downloadable Wilderness Packs -->
       <div class="packs-section-header">
@@ -367,15 +368,15 @@
             <div class="pack-title-wrap">
               <span class="pack-icon">🌿</span>
               <div>
-                <b>Taipei Botanical Reserve</b>
-                <span class="pack-sub">Nature trails, canopy gardens & terrain</span>
+                <b>Demo pack: Taipei Botanical Reserve (~300 m area)</b>
+                <span class="pack-sub">A tiny sample to try offline maps. For your own area, import a .pmtiles file.</span>
               </div>
             </div>
             <span class="pack-size-pill">6.7 MB</span>
           </div>
           <div class="pack-meta-row">
             <span>🗺️ Topo & Trails (z0–z21)</span>
-            <span>📱 100% Offline</span>
+            <span>📱 Offline</span>
           </div>
           <div class="pack-dl-progress hidden" id="pack-progress-wrap-botanical">
             <div class="pack-progress-bar">
@@ -386,6 +387,7 @@
           <button id="pack-dl-btn-botanical" class="primary small-btn full-width pack-action-btn" type="button">
             ⬇️ Download to Device (Free)
           </button>
+          <div class="pack-osm-attribution" style="font-size: 11px; color: var(--muted); margin-top: 6px; text-align: center;">Map data © OpenStreetMap contributors (ODbL)</div>
         </div>
       </div>
 

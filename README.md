@@ -9,12 +9,12 @@
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-wildtrail--chi.vercel.app-00C896?style=for-the-badge&logoColor=white)](https://wildtrail-chi.vercel.app)
 [![Hacktoberfest 2026](https://img.shields.io/badge/Hacktoberfest-2026_Week_1:_Touch_Grass-FF7518?style=for-the-badge&logo=hacktoberfest&logoColor=white)](https://dev.to/events/challenges/hacktoberfest-week1-2026-10-05)
 [![MIT License](https://img.shields.io/badge/License-MIT-1F6B4A?style=for-the-badge)](LICENSE)
-[![Progressive Web App](https://img.shields.io/badge/PWA-100%25_Installable-0B3024?style=for-the-badge&logo=pwa&logoColor=white)](#-install-as-a-progressive-web-app)
+[![Progressive Web App](https://img.shields.io/badge/PWA-Installable-0B3024?style=for-the-badge&logo=pwa&logoColor=white)](#-install-as-a-progressive-web-app)
 
 <br />
 
 > 🌾 **Built for the Hacktoberfest Open-Source AI Challenge: Week 1 ("Touch Grass")**  
-> *Getting people off the screen and into the real world with open-weight computer vision, client-side vector cartography, and zero cloud tracking.*
+> *Getting people off the screen and into the real world with open-weight computer vision, client-side vector cartography, and no analytics, accounts or tracking.*
 
 *Your pocket-sized field station — built for curious minds, muddy trails, and the little things worth noticing.*
 
@@ -26,7 +26,7 @@
 
 Most modern applications are engineered to keep you staring down at glass screens. **WildTrail does the exact opposite:** it turns your walk through a neighborhood park, forest reserve, or mountain trail into an immersive botanical expedition.
 
-Identify wildlife in real time using open neural models running directly inside your browser. Mint vintage, tactile 3D specimen stamps for every creature or wildflower you encounter. Watch the RPG-style fog-of-war lift as you physically hike outdoors. And navigate remote wilderness with zero cellular coverage using genuine, local PMTiles vector maps.
+Identify wildlife in real time using open neural models running directly inside your browser. Mint vintage, tactile 3D specimen stamps for every creature or wildflower you encounter. Watch the RPG-style fog-of-war lift as you physically hike outdoors. And navigate remote wilderness without cellular coverage using genuine, local PMTiles vector maps.
 
 ```mermaid
 flowchart LR
@@ -122,13 +122,13 @@ Export your wildlife discoveries as archival botanical collector postcards. Gene
 
 ---
 
-## 🔒 Zero-Telemetry Local Architecture
+## 🔒 Client-Side Local Architecture
 
-WildTrail is engineered around an uncompromising **zero-telemetry, client-side only** architecture:
+WildTrail is engineered around a client-side architecture (the app has no backend servers):
 
 ```mermaid
 flowchart TD
-    subgraph Client["📱 User Device (100% Client-Side Sandbox)"]
+    subgraph Client["📱 User Device (Client-Side, No Backend Servers)"]
         UI["🌿 WildTrail PWA Shell (Vanilla ES6+ / CSS3)"]
         Vision["🧠 Transformers.js · CLIP ViT-B/32 (ONNX / WebGPU)"]
         Audio["🔊 Web Audio API (Dual-Resonance SLR Mechanical Shutter)"]
@@ -142,18 +142,20 @@ flowchart TD
     end
 
     subgraph Remote["🌐 Caches Once on Wi-Fi · Works Fully Offline Thereafter"]
-        NoServer["❌ Zero Backend Application Servers"]
-        NoDB["❌ Zero Cloud Databases"]
-        NoTrack["❌ Zero Analytics, Telemetry, or Tracking Pixels"]
+        NoServer["❌ No Backend Application Servers"]
+        NoDB["❌ No Cloud Databases"]
+        NoTrack["❌ No Analytics, Accounts, or Tracking"]
     end
 ```
 
 > [!NOTE]  
 > **Privacy Guarantees:**  
-> - **100% On-Device Inference:** After initial first-load caching, all AI vision, GPS tracking, and specimen operations run entirely on your device.
-> - **Zero Accounts or Logins:** Start exploring immediately without entering an email, password, or third-party OAuth provider.
+> - **On-Device Inference:** After initial first-load caching, all AI vision, GPS tracking, and specimen operations run entirely on your device.
+> - **No Accounts or Logins:** Start exploring immediately without entering an email, password, or third-party OAuth provider.
 > - **Private Coordinates:** Your location is processed solely within local browser memory to unmask fog-of-war cells.
-> - **Total Data Ownership:** Export your entire journal and trail history as a single JSON file, or wipe local storage with one click.
+> - **Data Ownership:** Export your entire journal and trail history as a single JSON file, or wipe local storage with one click.
+>
+> **Privacy note:** The default online basemap fetches map tiles from OpenFreeMap, which can see your IP address and the map area you view. Your photos, finds, GPS track and AI inference never leave your device. To avoid any map requests, import or download an offline PMTiles pack.
 
 ---
 
@@ -163,14 +165,14 @@ For deep backcountry expeditions without cell signal, WildTrail provides an end-
 
 ```mermaid
 flowchart LR
-    A["⭐ 1-Click Starter Pack\n(Taipei Botanical Reserve)"] --> B["⚡ Chunked ReadableStream\n(Real-Time Progress)"]
+    A["⭐ Demo Pack\n(Taipei Botanical Reserve)"] --> B["⚡ Chunked ReadableStream\n(Real-Time Progress)"]
     B --> C["🔍 PMTiles v3 Header Check\n(Bounds & Format Validation)"]
     C --> D["💾 IndexedDB Persistence\n(Persistent Device Storage)"]
-    D --> E["🌲 Offline MapLibre GL JS\n(Zero-Network Navigation)"]
+    D --> E["🌲 Offline MapLibre GL JS\n(Offline navigation with a downloaded pack)"]
 ```
 
-- **Default Online Basemap (OpenFreeMap):** Powered by MapLibre GL JS and OpenFreeMap Liberty style (`https://tiles.openfreemap.org/styles/liberty`), highlighting forests, nature reserves, green spaces, waterways, and walking trails with zero API keys or commercial dependencies.
-- **1-Click Wilderness Pack Downloader:** Download self-contained wilderness maps (like *Taipei Botanical Reserve*, 6.7 MB) directly inside the app with real-time streaming progress bars (`ReadableStream`), zero manual hunting for files, and automatic IndexedDB persistence.
+- **Default Online Basemap (OpenFreeMap):** Powered by MapLibre GL JS and OpenFreeMap Liberty style (`https://tiles.openfreemap.org/styles/liberty`), highlighting forests, nature reserves, green spaces, waterways, and walking trails without API keys or commercial dependencies.
+- **1-Click Wilderness Pack Downloader:** Download self-contained wilderness maps (such as our demo pack: *Taipei Botanical Reserve*, ~300 m area, 6.7 MB — Map data © OpenStreetMap contributors (ODbL)) directly inside the app with real-time streaming progress bars (`ReadableStream`), no manual hunting for files, and automatic IndexedDB persistence.
 - **Dynamic Flashlight Vision Cone:** Google Maps-style field of view beam that rotates smoothly in real-time with device compass orientation and GPS movement.
 - **Two-Finger Touch Rotation:** Rotate map orientation freely with multi-touch gestures, with an interactive HUD button to snap North-up.
 - **Custom URL Downloader & Archive Inspector:** Download any public, CORS-enabled `.pmtiles` archive by direct URL, or inspect geographic bounding boxes, zoom levels ($z0–z21$), and vector layer schemas.
@@ -182,14 +184,14 @@ flowchart LR
 
 | Layer | Technology | Purpose |
 |:---|:---|:---|
-| **Interface** | HTML5, CSS Variables, Vanilla ES6+ | Zero bundler bloat, instant startup, responsive mobile design |
-| **Vision AI** | [Transformers.js](https://huggingface.co/docs/transformers.js) · CLIP `clip-vit-base-patch32` | 100% on-device neural image classification via WebGPU/Wasm |
-| **Online Basemap** | [MapLibre GL JS](https://maplibre.org/) · [OpenFreeMap](https://openfreemap.org/) | GPU-accelerated vector street/topo map with zero API keys |
+| **Interface** | HTML5, CSS Variables, Vanilla ES6+ | No bundler bloat, instant startup, responsive mobile design |
+| **Vision AI** | [Transformers.js](https://huggingface.co/docs/transformers.js) · CLIP `clip-vit-base-patch32` | On-device neural image classification via WebGPU/Wasm |
+| **Online Basemap** | [MapLibre GL JS](https://maplibre.org/) · [OpenFreeMap](https://openfreemap.org/) | GPU-accelerated vector street/topo map without API keys |
 | **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Local `.pmtiles` archives persisted in IndexedDB for backcountry use |
 | **Local Persistence** | IndexedDB (`finds`, `track`, `regions`, `meta`) | Structured private storage that survives reloads and restarts |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage SLR mechanical shutter sound |
-| **PWA & Cache** | Service Worker (`wildtrail-v48`) · Web App Manifest | Full offline shell caching and standalone home-screen experience |
-| **Deployment** | [Vercel](https://vercel.com/) | Edge hosting with zero server maintenance |
+| **PWA & Cache** | Service Worker (`wildtrail-v49`) · Web App Manifest | Full offline shell caching and standalone home-screen experience |
+| **Deployment** | [Vercel](https://vercel.com/) | Edge hosting without server maintenance |
 
 ---
 
@@ -234,7 +236,7 @@ Open **`http://localhost:8000`** in your browser.
 - [x] On-device species identification with OpenAI CLIP (`clip-vit-base-patch32`).
 - [x] Vintage perforated 3D specimen stamps with physics tilt and card flips.
 - [x] GPS pathfinding with dynamic 20m fog-of-war unmasking.
-- [x] Replace CARTO API basemap with OpenFreeMap Liberty (zero API keys).
+- [x] Replace CARTO API basemap with OpenFreeMap Liberty (no API keys required).
 - [x] Google Maps-style dynamic compass with rotating flashlight vision cone.
 - [x] Full offline vector & raster mapping powered by local `.pmtiles` archives.
 - [x] 1-Click in-app Wilderness Map Pack downloader with streaming progress.
@@ -268,7 +270,8 @@ WildTrail is made possible by open-source libraries and open geographic data:
 * [MapLibre GL JS](https://maplibre.org/)
 * [OpenFreeMap](https://openfreemap.org/)
 * [PMTiles](https://github.com/protomaps/PMTiles) by Protomaps
-* Map vector data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
+* Map vector data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL)
+* Demo offline map pack (`maps/taipei-botanical-reserve.pmtiles`): Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL)
 
 ---
 
