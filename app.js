@@ -623,6 +623,48 @@ document.querySelectorAll('#sort-pills button').forEach(b => b.onclick = () => {
   renderCollection();
 });
 
+// Helper to calculate dynamic explorer points based on specimen type, confidence and rarity
+function getFindPoints(find) {
+  let pts = 25;
+  const t = find.type || 'plant';
+  if (t === 'animal') pts = 50;
+  else if (t === 'bird') pts = 35;
+  else if (t === 'insect') pts = 30;
+  else pts = 20;
+
+  if (find.uncharted) pts += 25;
+  const salt = ((find.id || 0) + (find.name ? find.name.length * 7 : 0)) % 4;
+  if (salt === 1) pts += 10;
+  else if (salt === 2) pts += 15;
+  else if (salt === 3) pts += 20;
+  return pts;
+}
+
+// Helper to determine regional location stamp and date for the postcard
+function getLocationAndDate(find) {
+  const dateStr = new Date(find.time || Date.now()).toLocaleDateString([], {
+    month: 'short',
+    year: 'numeric'
+  }).toUpperCase();
+
+  let location = 'DELHI';
+  if (find.lat != null && find.lon != null) {
+    const lat = find.lat;
+    const lon = find.lon;
+    if (lat >= 28.2 && lat <= 28.9 && lon >= 76.8 && lon <= 77.5) location = 'DELHI';
+    else if (lat >= 18.8 && lat <= 19.3 && lon >= 72.7 && lon <= 73.1) location = 'MUMBAI';
+    else if (lat >= 12.8 && lat <= 13.2 && lon >= 77.4 && lon <= 77.8) location = 'BENGALURU';
+    else if (lat >= 17.2 && lat <= 17.6 && lon >= 78.3 && lon <= 78.6) location = 'HYDERABAD';
+    else if (lat >= 22.4 && lat <= 22.7 && lon >= 88.2 && lon <= 88.5) location = 'KOLKATA';
+    else if (lat >= 12.9 && lat <= 13.3 && lon >= 80.1 && lon <= 80.4) location = 'CHENNAI';
+    else if (lat >= 18.4 && lat <= 18.7 && lon >= 73.7 && lon <= 74.0) location = 'PUNE';
+    else if (lat >= 26.8 && lat <= 27.1 && lon >= 75.6 && lon <= 76.0) location = 'JAIPUR';
+    else if (lat >= 8.0 && lat <= 37.0 && lon >= 68.0 && lon <= 97.0) location = 'INDIA';
+    else location = 'WILDTRAIL';
+  }
+  return { location, date: dateStr };
+}
+
 async function renderCollection() {
   const allFinds = await getAll('finds');
   let finds = allFinds.filter(f => filter === 'all' || f.type === filter);
@@ -667,10 +709,11 @@ async function renderCollection() {
     const perfs = document.createElement('div');
     perfs.className = 'stamp-perforations';
 
-    // Top Denomination & Type Symbol
+    // Top Denomination & Type Symbol (Dynamic Explorer Points)
+    const pts = getFindPoints(f);
     const tag = document.createElement('div');
     tag.className = 'stamp-tile-tag';
-    tag.innerHTML = `<span>25P</span> <span>${ICONS[f.type] || '🌿'}</span>`;
+    tag.innerHTML = `<span>★ ${pts} XP</span> <span>${ICONS[f.type] || '🌿'}</span>`;
 
     // Inner Specimen Frame (Photo only, pristine vintage mount!)
     const frame = document.createElement('div');
@@ -681,10 +724,10 @@ async function renderCollection() {
     img.loading = 'lazy';
     frame.appendChild(img);
 
-    // Bottom Vintage Postal Country Text
+    // Bottom Species Name (Shows species name instead of INDIA · WT)
     const bot = document.createElement('div');
     bot.className = 'stamp-tile-bot';
-    bot.textContent = 'INDIA · WT';
+    bot.textContent = (f.name || 'WILD SPECIMEN').toUpperCase();
 
     const sheen = document.createElement('div');
     sheen.className = 'tile-sheen';
@@ -711,11 +754,16 @@ function open3DStampCard(find) {
     card.style.transform = 'perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)';
   }
 
-  // Front Stamp Face (Photo only, framed in vintage postage stamp)
+  const pts = getFindPoints(find);
+  const locDate = getLocationAndDate(find);
+
+  // Front Stamp Face (Photo, Dynamic XP, Species Name at bottom)
   $('stamp-front-img').src = find.photo;
   $('stamp-front-type').textContent = ICONS[find.type] || '🌿';
+  if ($('stamp-front-points')) $('stamp-front-points').textContent = `★ ${pts} XP`;
+  if ($('stamp-front-name')) $('stamp-front-name').textContent = (find.name || 'WILD SPECIMEN').toUpperCase();
 
-  // Back Postcard Face (All details & telemetry)
+  // Back Postcard Face (All details & location/date)
   $('stamp-back-name').textContent = find.name;
   $('stamp-back-badge').textContent = `${ICONS[find.type] || '🌿'} ${find.type.toUpperCase()}`;
   $('stamp-back-date').textContent = new Date(find.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
@@ -725,8 +773,10 @@ function open3DStampCard(find) {
     if ($('stamp-back-observer')) $('stamp-back-observer').textContent = name || 'Trail Naturalist';
   });
 
-  const stampDateStr = new Date(find.time).toLocaleDateString([], { month: 'short', year: 'numeric' }).toUpperCase();
-  if ($('stamp-back-postmark-date')) $('stamp-back-postmark-date').textContent = stampDateStr;
+  if ($('stamp-back-postmark-loc')) $('stamp-back-postmark-loc').textContent = locDate.location;
+  if ($('stamp-back-postmark-date')) $('stamp-back-postmark-date').textContent = locDate.date;
+  if ($('stamp-back-location-date')) $('stamp-back-location-date').textContent = `${locDate.location} · ${locDate.date}`;
+  if ($('stamp-back-xp')) $('stamp-back-xp').textContent = `★ ${pts} EXPLORER XP`;
 
   const coordsText = (find.lat != null && find.lon != null)
     ? `${find.lat.toFixed(4)}°, ${find.lon.toFixed(4)}°`

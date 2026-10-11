@@ -2175,12 +2175,17 @@ canvas#postcard-canvas {
 .stamp-tile-bot {
   text-align: center;
   font-family: Georgia, serif;
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 800;
-  letter-spacing: 1px;
-  color: #3f5945;
+  letter-spacing: 0.5px;
+  color: #243e2d;
   margin-top: 4px;
   z-index: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+  text-transform: uppercase;
 }
 
 /* Floating 3D Stamp & Postcard Modal */
@@ -2293,35 +2298,41 @@ canvas#postcard-canvas {
   font-family: Georgia, serif;
   font-size: 9px;
   font-weight: 800;
-  color: #3f5945;
-  letter-spacing: 1px;
+  color: #243e2d;
+  letter-spacing: 0.8px;
   margin-top: 6px;
+  gap: 8px;
 }
 
-.stamp-flip-tip {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(10, 22, 15, 0.88);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  color: #fef3c7;
+.stamp-caption-name {
   font-size: 10px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 999px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-  pointer-events: none;
+  font-weight: 900;
+  color: #1b3823;
+  letter-spacing: 0.5px;
   white-space: nowrap;
-  animation: pulseTip 2s ease-in-out infinite;
-  z-index: 10;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 175px;
+  text-transform: uppercase;
 }
 
-@keyframes pulseTip {
-  0%, 100% { opacity: 0.9; transform: translateX(-50%) scale(1); }
-  50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+.stamp-caption-series {
+  font-size: 8px;
+  color: #55725c;
+  white-space: nowrap;
+}
+
+.coords-lead {
+  font-weight: 800;
+  color: #8c6d36;
+  font-family: Georgia, serif;
+  letter-spacing: 0.5px;
+}
+
+.xp-line {
+  color: #10b981;
+  font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
 /* Back Face */
