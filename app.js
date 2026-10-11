@@ -251,10 +251,14 @@ function playDiscoveryChime() {
   } catch (_) {}
 }
 
-// ---------- Camera (iPhone High-Resolution + Fluid Zoom Controls) ----------
+// ---------- Camera (Sharp Autofocus + Hardware Front/Back Switching) ----------
 let stream = null;
 let currentVideoTrack = null;
-let currentFacingMode = 'environment'; // 'environment' (back) or 'user' (selfie)
+let currentFacingMode = 'environment'; // 'environment' (back) or 'user' (front)
+let currentCameraDeviceId = null;
+let availableCameras = [];
+let isCameraStarting = false;
+let isCameraSwitching = false;
 let isTorchOn = false;
 let currentCameraZoom = 1.0;
 let focusReticleTimer = null;
@@ -273,15 +277,32 @@ let lastHapticStep = 1.0;
 function applyVideoTransform() {
   const v = $('video');
   if (!v) return;
-  const isFront = currentFacingMode === 'user';
-  const scaleX = isFront ? -currentCameraZoom : currentCameraZoom;
-  const scaleY = currentCameraZoom;
 
-  if (currentCameraZoom === 1.0 && !isFront) {
+  if (currentCameraZoom === 1.0) {
     v.style.transform = 'none';
   } else {
-    v.style.transform = `scale(${scaleX}, ${scaleY})`;
+    v.style.transform = `scale(${currentCameraZoom})`;
     v.style.transformOrigin = 'center center';
+  }
+}
+
+async function applyContinuousAutofocus(track) {
+  if (!track || typeof track.applyConstraints !== 'function') return;
+  try {
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    const settings = track.getSettings ? track.getSettings() : {};
+
+    // Check if hardware/browser supports focusMode and has continuous autofocus
+    if (caps.focusMode && Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+      if (settings.focusMode !== 'continuous') {
+        await track.applyConstraints({
+          advanced: [{ focusMode: 'continuous' }]
+        });
+      }
+    }
+  } catch (err) {
+    // If autofocus constraint fails or is unsupported, retain device's native default focus behavior
+    console.warn('Continuous autofocus constraint skipped gracefully:', err);
   }
 }
 
@@ -337,20 +358,40 @@ function initCameraControls() {
       if ('vibrate' in navigator) navigator.vibrate(15);
 
       if (currentVideoTrack) {
-        const caps = currentVideoTrack.getCapabilities ? currentVideoTrack.getCapabilities() : {};
-        if (caps && caps.pointsOfInterest) {
-          try {
-            await currentVideoTrack.applyConstraints({
-              advanced: [{ pointsOfInterest: [{ x: x / rect.width, y: y / rect.height }] }]
-            });
-          } catch (_) {}
-        }
+        try {
+          const caps = currentVideoTrack.getCapabilities ? currentVideoTrack.getCapabilities() : {};
+          const advanced = [];
+
+          const normX = Math.max(0, Math.min(1, x / rect.width));
+          const normY = Math.max(0, Math.min(1, y / rect.height));
+
+          if (caps.pointsOfInterest) {
+            advanced.push({ pointsOfInterest: [{ x: normX, y: normY }] });
+          }
+
+          if (caps.focusMode && Array.isArray(caps.focusMode)) {
+            if (caps.focusMode.includes('single-shot')) {
+              advanced.push({ focusMode: 'single-shot' });
+            } else if (caps.focusMode.includes('continuous')) {
+              advanced.push({ focusMode: 'continuous' });
+            }
+          }
+
+          if (advanced.length > 0) {
+            await currentVideoTrack.applyConstraints({ advanced });
+          }
+        } catch (_) {}
       }
 
       clearTimeout(focusReticleTimer);
       focusReticleTimer = setTimeout(() => {
         reticle.classList.add('fade-out');
         setTimeout(() => reticle.classList.add('hidden'), 400);
+
+        // Resume continuous autofocus after tap-to-focus settle
+        if (currentVideoTrack) {
+          applyContinuousAutofocus(currentVideoTrack).catch(() => {});
+        }
       }, 1800);
     }
   });
@@ -509,11 +550,11 @@ function initCameraControls() {
     });
   }
 
-  // 7. Camera Flip / Switch (Front Selfie <-> Back Environment)
+  // 7. Hardware Camera Switch (Front <-> Back)
   if ($('flip-cam-btn')) {
     $('flip-cam-btn').onclick = async e => {
       e.stopPropagation();
-      flipCamera();
+      await switchCamera();
     };
   }
 
@@ -586,75 +627,180 @@ function initCameraControls() {
   }
 }
 
-async function flipCamera() {
-  warmUpAudio();
-  if ('vibrate' in navigator) navigator.vibrate([20, 30]);
-
+async function updateAvailableCameras() {
   const flipBtn = $('flip-cam-btn');
-  if (flipBtn) {
-    flipBtn.classList.add('flip-rotating');
-    setTimeout(() => flipBtn.classList.remove('flip-rotating'), 400);
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    if (flipBtn) flipBtn.classList.add('hidden');
+    return { frontCameras: [], backCameras: [], total: 0 };
   }
-
-  const v = $('video');
-  if (v) {
-    v.classList.add('camera-flipping');
-    setTimeout(() => v.classList.remove('camera-flipping'), 380);
-  }
-
-  const nextMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-  currentFacingMode = nextMode;
-
-  if (stream) {
-    await startCamera(nextMode);
-  }
-}
-
-async function startCamera(facingMode = currentFacingMode) {
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-    stream = null;
-  }
-  currentFacingMode = facingMode;
 
   try {
-    try {
-      // 1. High-resolution constraints (4K / 1080p target) with active facingMode
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: currentFacingMode },
-          width: { ideal: 3840, min: 1280 },
-          height: { ideal: 2160, min: 720 }
-        },
-        audio: false
-      });
-    } catch (hiResErr) {
-      try {
-        // Fallback for standard mobile camera
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: currentFacingMode } },
-          audio: false
-        });
-      } catch (camErr) {
-        // Fallback for webcams without facingMode constraint
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter(d => d.kind === 'videoinput');
+
+    // If only 1 camera exists, hide switch button completely
+    if (videoInputs.length <= 1) {
+      if (flipBtn) flipBtn.classList.add('hidden');
+      availableCameras = videoInputs;
+      return { frontCameras: [], backCameras: [], total: videoInputs.length };
+    }
+
+    const frontCameras = [];
+    const backCameras = [];
+    const otherCameras = [];
+
+    videoInputs.forEach(device => {
+      const label = (device.label || '').toLowerCase();
+      const isFront = /front|user|selfie|facing front|truedepth|facetime/i.test(label);
+      const isBack = /back|rear|environment|world|facing back|outward|main/i.test(label);
+
+      if (isFront && !isBack) {
+        frontCameras.push(device);
+      } else if (isBack && !isFront) {
+        backCameras.push(device);
+      } else {
+        otherCameras.push(device);
+      }
+    });
+
+    // Check track capabilities and mobile defaults if labels are generic
+    if (frontCameras.length === 0 && backCameras.length === 0 && videoInputs.length >= 2) {
+      const trackCaps = currentVideoTrack?.getCapabilities?.() || {};
+      const capsFacing = trackCaps.facingMode;
+      if (Array.isArray(capsFacing) && capsFacing.includes('environment') && capsFacing.includes('user')) {
+        backCameras.push(videoInputs[0]);
+        frontCameras.push(videoInputs[1]);
+      } else if (otherCameras.length >= 2) {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile) {
+          // On mobile phones, Camera 0 is almost universally rear, Camera 1 is front
+          backCameras.push(videoInputs[0]);
+          frontCameras.push(videoInputs[1]);
+        }
       }
     }
 
-    $('video').srcObject = stream;
-    await $('video').play();
-    show('cam-msg', false);
-    $('snap-btn').disabled = false;
-    $('cam-btn-text').textContent = 'Stop camera';
+    availableCameras = videoInputs;
 
-    const [vTrack] = stream.getVideoTracks();
-    currentVideoTrack = vTrack;
-    isTorchOn = false;
-    applyVideoTransform();
+    // Both front and rear must be available, AND stream must be active to show button
+    const hasFrontAndBack = frontCameras.length > 0 && backCameras.length > 0;
+    if (hasFrontAndBack && stream) {
+      if (flipBtn) {
+        flipBtn.classList.remove('hidden');
+        flipBtn.removeAttribute('disabled');
+      }
+    } else {
+      if (flipBtn) flipBtn.classList.add('hidden');
+    }
 
+    return { frontCameras, backCameras, otherCameras, total: videoInputs.length };
+  } catch (err) {
+    console.warn('Could not enumerate camera devices:', err);
+    if (flipBtn) flipBtn.classList.add('hidden');
+    return { frontCameras: [], backCameras: [], total: 0 };
+  }
+}
+
+async function switchCamera() {
+  if (isCameraSwitching || isCameraStarting || !stream) return;
+  isCameraSwitching = true;
+
+  const flipBtn = $('flip-cam-btn');
+  const camBox = document.querySelector('.camera');
+  const v = $('video');
+
+  // Subtle loading state
+  if (flipBtn) {
+    flipBtn.classList.add('is-switching');
+    flipBtn.setAttribute('disabled', 'true');
+  }
+  if (camBox) {
+    camBox.classList.add('camera-switching');
+  }
+
+  warmUpAudio();
+  if ('vibrate' in navigator) navigator.vibrate([15, 25]);
+
+  const targetFacing = currentFacingMode === 'environment' ? 'user' : 'environment';
+  const prevFacing = currentFacingMode;
+  const prevDeviceId = currentCameraDeviceId;
+
+  try {
+    // 1. Identify target deviceId if available
+    const { frontCameras, backCameras } = await updateAvailableCameras();
+    let targetDeviceId = null;
+    if (targetFacing === 'user' && frontCameras.length > 0) {
+      targetDeviceId = frontCameras[0].deviceId;
+    } else if (targetFacing === 'environment' && backCameras.length > 0) {
+      targetDeviceId = backCameras[0].deviceId;
+    }
+
+    // 2. Stop previous stream tracks cleanly before acquiring new one
+    if (stream) {
+      stream.getTracks().forEach(t => {
+        try { t.stop(); } catch (_) {}
+      });
+      stream = null;
+    }
+    currentVideoTrack = null;
+
+    // 3. Acquire new stream with target constraints
+    let newStream = null;
+    const reqConstraints = {
+      width: { ideal: 1920 },
+      height: { ideal: 1080 }
+    };
+
+    if (targetDeviceId) {
+      reqConstraints.deviceId = { exact: targetDeviceId };
+    } else {
+      reqConstraints.facingMode = { ideal: targetFacing };
+    }
+
+    try {
+      newStream = await navigator.mediaDevices.getUserMedia({
+        video: reqConstraints,
+        audio: false
+      });
+    } catch (err1) {
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: targetFacing } },
+          audio: false
+        });
+      } catch (err2) {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
+    }
+
+    if (!newStream) throw new Error('No stream returned for camera switch');
+
+    // 4. Attach new stream to video element
+    stream = newStream;
+    const [newTrack] = stream.getVideoTracks();
+    currentVideoTrack = newTrack;
+
+    const actualSettings = newTrack?.getSettings?.() || {};
+    currentCameraDeviceId = actualSettings.deviceId || targetDeviceId || null;
+    currentFacingMode = actualSettings.facingMode || targetFacing;
+
+    v.srcObject = stream;
+    await v.play();
+
+    // 5. Apply continuous autofocus
+    await applyContinuousAutofocus(newTrack);
+
+    // 6. Reset zoom and apply non-mirrored transform
+    setCameraZoom(1.0);
+
+    // 7. Update torch button visibility
     if ($('torch-btn')) {
       $('torch-btn').classList.remove('active');
-      const caps = vTrack?.getCapabilities ? vTrack.getCapabilities() : {};
+      isTorchOn = false;
+      const caps = newTrack?.getCapabilities?.() || {};
       if (caps && caps.torch && currentFacingMode === 'environment') {
         $('torch-btn').classList.remove('hidden');
       } else {
@@ -662,9 +808,134 @@ async function startCamera(facingMode = currentFacingMode) {
       }
     }
 
+    // Refresh enumerated cameras list
+    await updateAvailableCameras();
+
+    show('cam-msg', false);
+  } catch (err) {
+    console.error('Camera switch failed:', err);
+    $('cam-msg').textContent = 'Camera switch failed: ' + (err.message || err.name) + '. Reverting...';
+    show('cam-msg', true);
+
+    // Graceful recovery: re-open previous camera
+    try {
+      await startCamera(prevFacing, prevDeviceId);
+    } catch (recErr) {
+      console.error('Recovery failed:', recErr);
+      $('cam-msg').textContent = 'Camera unavailable. Please click Start camera.';
+      show('cam-msg', true);
+    }
+  } finally {
+    isCameraSwitching = false;
+    if (flipBtn) {
+      flipBtn.classList.remove('is-switching');
+      flipBtn.removeAttribute('disabled');
+    }
+    if (camBox) {
+      camBox.classList.remove('camera-switching');
+    }
+  }
+}
+
+async function startCamera(facingMode = currentFacingMode, preferredDeviceId = null) {
+  if (isCameraStarting) return;
+  isCameraStarting = true;
+
+  if (stream) {
+    stream.getTracks().forEach(t => {
+      try { t.stop(); } catch (_) {}
+    });
+    stream = null;
+  }
+  currentVideoTrack = null;
+  currentFacingMode = facingMode;
+
+  try {
+    let newStream = null;
+    const baseConstraints = {
+      width: { ideal: 1920 },
+      height: { ideal: 1080 }
+    };
+
+    if (preferredDeviceId) {
+      baseConstraints.deviceId = { exact: preferredDeviceId };
+    } else if (facingMode) {
+      baseConstraints.facingMode = { ideal: facingMode };
+    }
+
+    try {
+      newStream = await navigator.mediaDevices.getUserMedia({
+        video: baseConstraints,
+        audio: false
+      });
+    } catch (err1) {
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode } },
+          audio: false
+        });
+      } catch (err2) {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
+    }
+
+    if (!newStream) throw new Error('No video stream received');
+
+    stream = newStream;
+    const [vTrack] = stream.getVideoTracks();
+    currentVideoTrack = vTrack;
+
+    const actualSettings = vTrack?.getSettings?.() || {};
+    if (actualSettings.deviceId) currentCameraDeviceId = actualSettings.deviceId;
+    if (actualSettings.facingMode) currentFacingMode = actualSettings.facingMode;
+
+    const v = $('video');
+    v.srcObject = stream;
+    await v.play();
+
+    show('cam-msg', false);
+    $('snap-btn').disabled = false;
+    $('cam-btn-text').textContent = 'Stop camera';
+
+    isTorchOn = false;
+    setCameraZoom(1.0);
+
+    // Apply continuous autofocus if supported
+    await applyContinuousAutofocus(vTrack);
+
+    // Update hardware torch
+    if ($('torch-btn')) {
+      $('torch-btn').classList.remove('active');
+      const caps = vTrack?.getCapabilities?.() || {};
+      if (caps && caps.torch && currentFacingMode === 'environment') {
+        $('torch-btn').classList.remove('hidden');
+      } else {
+        $('torch-btn').classList.add('hidden');
+      }
+    }
+
+    // Enumerate cameras now that permission is granted
+    await updateAvailableCameras();
+
     warmModel();
   } catch (e) {
-    $('cam-msg').textContent = 'Camera unavailable: ' + (e.message || e.name);
+    console.error('startCamera error:', e);
+    const isDenied = e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError';
+    const msg = isDenied
+      ? 'Camera access denied. Please allow camera permissions in your browser.'
+      : 'Camera unavailable: ' + (e.message || e.name);
+    $('cam-msg').textContent = msg;
+    show('cam-msg', true);
+    $('snap-btn').disabled = true;
+    $('cam-btn-text').textContent = 'Start camera';
+
+    const flipBtn = $('flip-cam-btn');
+    if (flipBtn) flipBtn.classList.add('hidden');
+  } finally {
+    isCameraStarting = false;
   }
 }
 
@@ -674,23 +945,55 @@ $('cam-btn').onclick = async () => {
 };
 
 function stopCamera() {
-  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (stream) {
+    stream.getTracks().forEach(t => {
+      try { t.stop(); } catch (_) {}
+    });
+  }
   stream = null;
   currentVideoTrack = null;
+  currentCameraDeviceId = null;
   isTorchOn = false;
-  $('video').srcObject = null;
-  $('video').style.transform = 'none';
+  isCameraStarting = false;
+  isCameraSwitching = false;
+
+  const v = $('video');
+  if (v) {
+    v.srcObject = null;
+    v.style.transform = 'none';
+  }
+
   show('cam-msg', true);
   $('cam-msg').textContent = 'Camera is off';
   $('snap-btn').disabled = true;
   $('cam-btn-text').textContent = 'Start camera';
+
   if ($('torch-btn')) {
     $('torch-btn').classList.add('hidden');
     $('torch-btn').classList.remove('active');
   }
+  const flipBtn = $('flip-cam-btn');
+  if (flipBtn) {
+    flipBtn.classList.add('hidden');
+    flipBtn.classList.remove('is-switching');
+  }
+  const camBox = document.querySelector('.camera');
+  if (camBox) {
+    camBox.classList.remove('camera-switching');
+  }
   const reticle = $('focus-reticle');
   if (reticle) reticle.classList.add('hidden');
 }
+
+if (navigator.mediaDevices?.addEventListener) {
+  navigator.mediaDevices.addEventListener('devicechange', () => {
+    if (stream) {
+      updateAvailableCameras().catch(() => {});
+    }
+  });
+}
+window.addEventListener('beforeunload', stopCamera);
+window.addEventListener('pagehide', stopCamera);
 
 // ---------- On-device identification (open model, runs in the browser) ----------
 let classifierP = null;
@@ -763,14 +1066,11 @@ $('snap-btn').onclick = async () => {
     c.width = w;
     c.height = h;
     const ctx = c.getContext('2d');
-    const isFront = currentFacingMode === 'user';
-    const scaleX = isFront ? -currentCameraZoom : currentCameraZoom;
-    const scaleY = currentCameraZoom;
 
-    if ((currentCameraZoom !== 1 || isFront) && v.style.transform && v.style.transform !== 'none') {
+    if (currentCameraZoom !== 1.0 && v.style.transform && v.style.transform !== 'none') {
       ctx.save();
       ctx.translate(c.width / 2, c.height / 2);
-      ctx.scale(scaleX, scaleY);
+      ctx.scale(currentCameraZoom, currentCameraZoom);
       ctx.translate(-c.width / 2, -c.height / 2);
       ctx.drawImage(v, 0, 0, c.width, c.height);
       ctx.restore();
@@ -789,15 +1089,7 @@ $('snap-btn').onclick = async () => {
   const sx = ((v.videoWidth || 256) - minDim) / 2;
   const sy = ((v.videoHeight || 256) - minDim) / 2;
 
-  if (currentFacingMode === 'user') {
-    thumbCtx.save();
-    thumbCtx.translate(256, 0);
-    thumbCtx.scale(-1, 1);
-    thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
-    thumbCtx.restore();
-  } else {
-    thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
-  }
+  thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
   const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.85);
 
   pending = { photo: fullPhotoUrl, guesses: [] };

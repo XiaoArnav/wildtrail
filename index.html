@@ -97,7 +97,15 @@
           <div class="viewfinder-overlay">
             <div class="viewfinder-top-bar">
               <button id="torch-btn" class="cam-icon-btn hidden" title="Toggle flashlight">⚡</button>
-              <button type="button" id="flip-cam-btn" class="cam-icon-btn" title="Flip camera (Back / Front)">🔄</button>
+              <button type="button" id="flip-cam-btn" class="cam-icon-btn hidden" title="Switch camera" aria-label="Switch camera">
+                <svg class="cam-switch-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2z"/>
+                  <path d="M8.5 12a3.5 3.5 0 0 1 5.6-2.8"/>
+                  <path d="M15.5 12a3.5 3.5 0 0 1-5.6 2.8"/>
+                  <path d="M14 9h2v-2"/>
+                  <path d="M10 15H8v2"/>
+                </svg>
+              </button>
               <input type="file" id="native-cam-input" accept="image/*" capture="environment" style="display:none">
             </div>
 
