@@ -188,7 +188,7 @@ flowchart LR
 | **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Local `.pmtiles` archives persisted in IndexedDB for backcountry use |
 | **Local Persistence** | IndexedDB (`finds`, `track`, `regions`, `meta`) | Structured private storage that survives reloads and restarts |
 | **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage SLR mechanical shutter sound |
-| **PWA & Cache** | Service Worker (`wildtrail-v47`) · Web App Manifest | Full offline shell caching and standalone home-screen experience |
+| **PWA & Cache** | Service Worker (`wildtrail-v48`) · Web App Manifest | Full offline shell caching and standalone home-screen experience |
 | **Deployment** | [Vercel](https://vercel.com/) | Edge hosting with zero server maintenance |
 
 ---
@@ -240,9 +240,9 @@ Open **`http://localhost:8000`** in your browser.
 - [x] 1-Click in-app Wilderness Map Pack downloader with streaming progress.
 - [x] Vintage herbarium collector postcard export with postmark stamps.
 - [x] IndexedDB storage quota management and archive inspector.
-- [ ] [**#1 — GPX trail export alongside JSON format**](https://github.com/XiaoArnav/wildtrail/issues/1) *(Good first issue · Enhancement)*
-- [ ] [**#2 — Expand offline species taxonomy catalogue for butterflies & wildflowers**](https://github.com/XiaoArnav/wildtrail/issues/2) *(Good first issue · Data)*
-- [ ] [**#3 — Add high-contrast mode for outdoor sunlight readability**](https://github.com/XiaoArnav/wildtrail/issues/3) *(UI/UX · Accessibility)*
+- [x] [**#1 — GPX 1.1 trail track export alongside JSON format**](https://github.com/XiaoArnav/wildtrail/issues/1) *(Implemented via GitHub Copilot PR #7)*
+- [ ] [**#2 — Expand offline species taxonomy catalogue for butterflies & wildflowers**](https://github.com/XiaoArnav/wildtrail/issues/2) *(Good first issue · Open for contributors)*
+- [x] [**#3 — High-contrast mode for outdoor sunlight readability**](https://github.com/XiaoArnav/wildtrail/issues/3) *(Implemented via GitHub Copilot PR #6)*
 - [ ] Audio bird call identification using on-device acoustic models.
 
 ---
