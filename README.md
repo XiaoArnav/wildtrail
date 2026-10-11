@@ -1,40 +1,104 @@
+<div align="center">
+
 # 🌿 WildTrail
 
-> **Touch grass and collect real wildlife outdoors.**  
-> An open-source, 100% private Progressive Web App powered by on-device computer vision AI and offline vector world maps.
+### Step outside. Discover more. Keep every wild encounter.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-wildtrail--chi.vercel.app-10b981?style=for-the-badge&logo=vercel)](https://wildtrail-chi.vercel.app)
-[![Hacktoberfest 2026](https://img.shields.io/badge/Hacktoberfest-2026-orange?style=for-the-badge&logo=hacktoberfest)](https://hacktoberfest.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-amber?style=for-the-badge)](LICENSE)
-[![Privacy: 100% On-Device](https://img.shields.io/badge/Privacy-100%25%20On--Device-emerald?style=for-the-badge)](#privacy-by-design)
-[![PWA: Offline Ready](https://img.shields.io/badge/PWA-Offline%20Ready-blue?style=for-the-badge)](#offline-architecture)
+**A privacy-first nature exploration PWA that turns the outdoors into your personal field journal.**
 
----
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-00C896?style=for-the-badge&logoColor=white)](https://wildtrail-chi.vercel.app)
+[![Hacktoberfest 2026](https://img.shields.io/badge/Hacktoberfest-2026-FF7518?style=for-the-badge&logo=hacktoberfest&logoColor=white)](https://hacktoberfest.com)
+[![MIT License](https://img.shields.io/badge/License-MIT-1F6B4A?style=for-the-badge)](LICENSE)
+[![Progressive Web App](https://img.shields.io/badge/PWA-Installable-0B3024?style=for-the-badge&logo=pwa&logoColor=white)](#install-as-a-progressive-web-app)
 
-## 🧭 Live Deployments
+<br />
 
-* **Production URL:** [https://wildtrail-chi.vercel.app](https://wildtrail-chi.vercel.app)
-* **Alternative Mirror:** [https://wildtrail-xiao-c64a.vercel.app](https://wildtrail-xiao-c64a.vercel.app)
-* **Repository:** [https://github.com/XiaoArnav/wildtrail](https://github.com/XiaoArnav/wildtrail)
+*Your pocket-sized field station — built for curious minds, muddy trails, and the little things worth noticing.*
+
+</div>
 
 ---
 
-## 📸 Visual Showcase
+## 🧭 The wild is closer than you think.
+
+WildTrail combines real-time species discovery, a collectible botanical journal, and GPS-powered adventure mapping into one private, local-first web application. Identify wildlife outdoors, mint vintage specimen stamps, and gradually uncover the fog-of-war across your neighborhood.
+
+```mermaid
+flowchart LR
+    A["🌿 1. Step Outdoors"] --> B["📷 2. Point Camera"]
+    B --> C["🧠 3. On-Device AI"]
+    C --> D["🏷️ 4. Confirm Species"]
+    D --> E["📖 5. Mint 3D Stamp"]
+    E --> F["🗺️ 6. Uncover Fog-of-War"]
+    F --> A
+```
+
+<div align="center">
+
+| 📷 **Discover** | 📚 **Collect** | 🗺️ **Explore** |
+|:---:|:---:|:---:|
+| Identify species in milliseconds with on-device computer vision AI. | Transform outdoor finds into tactile, vintage-inspired specimen stamps. | Track your hiking trail and uncover real-world map territory as you move. |
+
+</div>
+
+---
+
+## 📸 A Closer Look
+
+### 01 · Scanner — Identify what catches your eye
+
+Point your camera, capture a specimen, and review suggested identifications with instant confidence scoring. The neural network runs entirely inside your browser's WebAssembly/WebGPU runtime, ensuring zero latency and total location privacy.
+
+<div align="center">
+  <img src="screenshots/scanner.png" alt="WildTrail species scanner showing tiger identification" width="92%" />
+  <p><sub>Review suggested species classifications, verify taxonomy, and save uncropped high-resolution photos directly to your collection.</sub></p>
+</div>
+
+---
+
+### 02 · Field Guide — Make every find memorable
+
+Every confirmed encounter is minted into a tactile, postage-stamp-inspired keepsake. Browse your collection across kingdom categories (Animals, Birds, Plants, Insects), arrange finds by recency or name, and flip cards to inspect handwritten botanical notes.
+
+<div align="center">
+  <img src="screenshots/field-guide.png" alt="WildTrail Field Journal showing collectible nature stamps" width="92%" />
+  <p><sub>Your interactive specimen archive featuring 3D tilt physics, perforation scalloping, and explorer XP points.</sub></p>
+</div>
+
+<br />
+
+#### 🏷️ Collectible Specimen Stamps Gallery
 
 <div align="center">
   <table>
     <tr>
-      <td width="33%" align="center">
-        <b>📷 Scanner & Live Viewfinder</b><br><br>
-        <img src="screenshots/camera-scanner.png" alt="Wildlife Scanner" width="100%"/>
+      <td align="center" width="25%">
+        <img src="screenshots/stamp-tiger.png" alt="Tiger collectible stamp" width="100%" />
+        <br />
+        <b>🐅 Animals</b>
+        <br />
+        <sub><i>Panthera tigris</i> · 65 XP</sub>
       </td>
-      <td width="33%" align="center">
-        <b>📖 Field Guide & 3D Stamp</b><br><br>
-        <img src="screenshots/field-guide-stamp.png" alt="3D Vintage Stamp" width="100%"/>
+      <td align="center" width="25%">
+        <img src="screenshots/stamp-razorbill.png" alt="Razorbill collectible stamp" width="100%" />
+        <br />
+        <b>🐧 Birds</b>
+        <br />
+        <sub><i>Alca torda</i> · 55 XP</sub>
       </td>
-      <td width="33%" align="center">
-        <b>🗺️ Territory & Adventure Map</b><br><br>
-        <img src="screenshots/territory-map.png" alt="Territory World Map" width="100%"/>
+      <td align="center" width="25%">
+        <img src="screenshots/stamp-penguin.png" alt="Penguin collectible stamp" width="100%" />
+        <br />
+        <b>❄️ Polar Fauna</b>
+        <br />
+        <sub><i>Spheniscidae</i> · 50 XP</sub>
+      </td>
+      <td align="center" width="25%">
+        <img src="screenshots/stamp-euphorbia.png" alt="Euphorbia milii collectible stamp" width="100%" />
+        <br />
+        <b>🌸 Plants</b>
+        <br />
+        <sub><i>Euphorbia milii</i> · 30 XP</sub>
       </td>
     </tr>
   </table>
@@ -42,101 +106,195 @@
 
 ---
 
-## ✨ Key Features
+### 03 · Territory — Turn a walk into an expedition
 
-### 1. 📷 Pro Hardware Camera & Zero-Cloud AI Scanner
-* **100% On-Device CLIP Vision Inference:** Powered by `Xenova/clip-vit-base-patch32` running via **Transformers.js** inside WebAssembly / WebGPU directly on your phone. No cloud API calls, zero latency, and zero data leaves your handset.
-* **Authentic 35mm Mechanical Audio:** Emits a high-fidelity mechanical SLR shutter sound (*Ka-chunk!*) with dual body resonance and focal curtain transit on capture.
-* **Hardware Lens Switching:** Real physical camera switching between wide-angle back lens and front selfie camera via `navigator.mediaDevices.enumerateDevices` (no mirrored CSS transformations).
-* **Precise Framing Parity:** Camera viewfinder and captured photographs maintain 100% uncropped aspect ratio fidelity.
-* **Fluid Mobile Controls:** Multi-touch pinch-to-zoom, desktop mouse-wheel zoom, tap-to-focus with autofocus constraint capability probing, and sensor exposure handling.
-* **Save to Camera Roll:** Direct export to native photo roll or auto-download.
+Experience outdoor walks like an adventure RPG. Fog-of-war tiles conceal unexplored wilderness until you physically traverse them. Real-time GPS pathfinding paints glowing trail coordinates, charts total distance walked, and plots interactive specimen discovery pins.
 
-### 2. 📖 Field Guide & 3D Archival Postcards
-* **Interactive 3D Postage Stamps:** Captured specimens are transformed into vintage postage stamps with scalloped perforation teeth, dynamic holographic sheen, and multi-axis finger/mouse tilt physics.
-* **180° Card Flip:** Tap or drag any stamp to flip it around and inspect handwritten botanical archival notes, collection timestamps, GPS regional stamps, and Explorer XP points.
-* **Vintage Field Postcard Generator:** Canvas-rendered vintage parchment postcard with ornate double borders, corner flourishes, specimen photo mounts, and seal marks.
-* **Native Share Sheet Integration:** One-tap export to iOS/Android native share sheets or high-resolution PNG download.
-* **Categorization & Sorting:** Instant filter tabs (Birds, Animals, Insects, Plants) and sorting pills (Recent, Name, Type).
-
-### 3. 🗺️ Territory & RPG Adventure World Map
-* **Dynamic Fog-of-War:** Dark hexagonal tiles veil unexplored wilderness. As you walk outside, your GPS path reveals real-world terrain and uncovers territory.
-* **Interactive Discovery Pins:** Tapping map pins opens specimen popups with instant jump-to-guide actions.
-* **Cartographic Navigation HUD:** Dynamic vision cone showing player heading, glowing dual-stroke GPS trail, radar pulse beacons, cartographic coordinate grid, and dynamic scale ruler.
-* **Offline Vector Street Data:** Powered by **MapLibre GL JS** and **PMTiles (Protomaps)**. Allows 1-click, permission-approved offline vector street downloads (~12–18 MB) stored safely inside IndexedDB.
-* **Uncharted Exploration Tracker:** Real-time distance walked telemetry, squares explored counter, and edge-warning banners when stepping into uncharted terrain.
+<div align="center">
+  <img src="screenshots/territory.png" alt="WildTrail Territory map with GPS tracking controls and exploration statistics" width="92%" />
+  <p><sub>Dynamic fog-of-war, heading compass, radar pulse ripples, and offline PMTiles vector mapping.</sub></p>
+</div>
 
 ---
 
-## 🔒 Privacy by Design
+## 🔒 Local-First Privacy Architecture
 
-WildTrail is engineered strictly around a **zero-telemetry, local-first** philosophy:
-* ❌ **No user accounts or logins.**
-* ❌ **No remote database or analytics servers.**
-* ❌ **No photos, coordinates, or tracks leave your device.**
-* ✅ **100% Local Storage:** All photos, specimens, GPS tracks, and explorer metadata are stored exclusively inside your browser's private **IndexedDB** storage.
-* ✅ **You Own Your Data:** Complete 1-click JSON data export and instant permanent erase controls are always accessible in the Territory settings.
+WildTrail is engineered around an uncompromising **zero-telemetry, client-side only** architecture:
+
+```mermaid
+flowchart TD
+    subgraph Client["📱 User Device (100% Client-Side)"]
+        UI["🌿 WildTrail PWA Shell (Vanilla ES6 / CSS3)"]
+        Vision["🧠 Transformers.js · CLIP ViT-B/32 (ONNX / WebGPU)"]
+        Audio["🔊 Web Audio API (Vintage Mechanical Shutter)"]
+        GIS["🗺️ MapLibre GL JS + PMTiles (Vector Street Maps)"]
+        Storage[("💾 IndexedDB Storage: Finds · GPS Tracks · Regions")]
+
+        UI <--> Vision
+        UI <--> Audio
+        UI <--> GIS
+        UI <--> Storage
+    end
+
+    subgraph Remote["🚫 Zero Cloud Dependencies"]
+        NoServer["❌ No Backend Server"]
+        NoDB["❌ No Cloud Database"]
+        NoTrack["❌ No Analytics or Tracking"]
+    end
+```
+
+<details open>
+<summary><b>🔐 Privacy & Storage Guarantees</b></summary>
+
+* **No Accounts or Logins:** Start exploring immediately without entering an email, password, or third-party OAuth.
+* **On-Device Inference:** Vision inference runs locally inside browser memory. Photos are never uploaded to remote cloud APIs.
+* **100% Private Coordinates:** GPS location is processed purely on-device to reveal local fog-of-war.
+* **Complete Data Ownership:** Export your entire journal and trail history as a single JSON file, or wipe local storage with one click.
+
+</details>
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## 🛠️ Feature Breakdown
 
-| Layer | Technologies |
-| :--- | :--- |
-| **Frontend Framework** | Vanilla ES6+ Modules, HTML5, Modern CSS Variables (Zero bundler bloat) |
-| **Vision AI Engine** | [Transformers.js](https://huggingface.co/docs/transformers.js) · Open CLIP `clip-vit-base-patch32` |
-| **Mapping & GIS** | [MapLibre GL JS](https://maplibre.org/) · [PMTiles](https://protomaps.com/) · OpenStreetMap contributors |
-| **Audio Engine** | Web Audio API · Dual PCM WAV synthesis · HTML5 Audio Engine |
-| **Storage Engine** | IndexedDB (`finds`, `track`, `meta`, `regions`) |
-| **Offline PWA** | Service Worker Cache API (`wildtrail-v37`) · Web App Manifest |
-| **Hosting & CI/CD** | Vercel Serverless Edge Platform |
+<details open>
+<summary><b>📷 On-Device Species Scanner</b></summary>
+
+- **In-Browser Vision AI:** Powered by OpenAI CLIP (`clip-vit-base-patch32`) optimized for Transformers.js.
+- **Hardware Lens Switching:** Real physical front/back camera lens switching via `MediaDevices.enumerateDevices` (no mirrored CSS flips).
+- **Exact Framing Parity:** Live viewfinder and saved photo match 1:1 without unintended cropping.
+- **Mechanical Shutter Audio:** Emits a realistic 35mm mechanical SLR shutter sound with dual body resonance on capture.
+- **Save to Camera Roll:** Direct export to your device's photo gallery with metadata tags.
+
+</details>
+
+<details open>
+<summary><b>📖 Collectible Field Journal</b></summary>
+
+- **Perforated 3D Postage Stamps:** Rendered with realistic scalloped teeth, soft drop shadows, and multi-axis tilt physics.
+- **180° Card Flip:** Inspect handwritten botanical notes, taxonomy details, collection timestamps, and regional coordinates.
+- **Category Taxonomy:** Organize finds across Birds, Animals, Insects, and Plants.
+- **Multi-Mode Sorting:** Filter and sort your findings by recency, species name, or classification type.
+
+</details>
+
+<details open>
+<summary><b>🗺️ GPS Territory Exploration</b></summary>
+
+- **Dynamic Fog-of-War:** Dark hexagonal grid uncovers real-world terrain as you walk outdoors.
+- **Navigation HUD:** Dynamic vision cone indicating heading, glowing GPS trail, and dynamic scale ruler.
+- **Discovery Pins:** Tap any discovery pin to open specimen details and jump directly to its Field Guide card.
+- **Offline PMTiles Maps:** Download vector street boundaries (~12–18 MB) for offline wilderness expeditions.
+
+</details>
 
 ---
 
-## 🚀 Getting Started
+## 🏗️ Built With
 
-### Quick Start (Local Development)
+| Layer | Technology | Purpose |
+|:---|:---|:---|
+| **Interface** | HTML5, CSS Variables, Vanilla ES6+ | Zero bundler bloat, ultra-lightweight performance |
+| **Vision AI** | [Transformers.js](https://huggingface.co/docs/transformers.js) · CLIP `clip-vit-base-patch32` | 100% on-device neural image classification |
+| **Interactive Maps** | [MapLibre GL JS](https://maplibre.org/) | GPU-accelerated vector map rendering |
+| **Offline Mapping** | [PMTiles](https://protomaps.com/) · Protomaps | Single-file vector tile archives stored in browser |
+| **Local Persistence** | IndexedDB | Private storage for finds, coordinates, and offline regions |
+| **Audio Engine** | Web Audio API + HTML5 Audio | Dual PCM synthesis for vintage shutter sound |
+| **Installable App** | Service Worker (`wildtrail-v37`) · Web App Manifest | Full offline caching and standalone PWA support |
+| **Hosting & Edge** | [Vercel](https://vercel.com/) | Continuous deployment with zero server maintenance |
 
-Because camera APIs and geolocation require a secure origin (`HTTPS` or `localhost`), run a local web server:
+---
+
+## 🚀 Try WildTrail
+
+### Use the Live App
+
+👉 **[Open WildTrail →](https://wildtrail-chi.vercel.app)**
+
+For the optimal experience, open the link in your mobile browser and add it to your Home Screen.
+
+---
+
+### Run Locally
+
+Camera and geolocation APIs require a secure origin (`HTTPS` or `localhost`):
 
 ```bash
 # Clone the repository
 git clone https://github.com/XiaoArnav/wildtrail.git
 cd wildtrail
 
-# Start a local server (Python 3)
+# Start a local static server using Python 3
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000` in your browser.
+Then visit **`http://localhost:8000`** in your browser.
 
 ---
 
-### Installing as a Mobile App (PWA)
+### Install as a Progressive Web App
 
-WildTrail is fully PWA-compliant and functions offline after the initial visit:
+* **iPhone / iPad:** Open the site in Safari → tap **Share** (box with arrow) → tap **"Add to Home Screen"**.
+* **Android:** Open the site in Chrome → tap **Menu (⋮)** → tap **"Install app"** or **"Add to Home screen"**.
+* **Desktop:** Click the install icon in the URL bar (Chrome / Edge / Brave).
 
-#### On iPhone / iPad (Safari)
-1. Open [https://wildtrail-chi.vercel.app](https://wildtrail-chi.vercel.app) in Safari.
-2. Tap the **Share** button (box with upward arrow) at the bottom.
-3. Scroll down and tap **"Add to Home Screen"**.
-4. Launch WildTrail from your home screen for full-screen camera and map experience.
-
-#### On Android (Chrome)
-1. Open [https://wildtrail-chi.vercel.app](https://wildtrail-chi.vercel.app) in Chrome.
-2. Tap the **Three Dots (⋮)** in the top right.
-3. Tap **"Install app"** or **"Add to Home screen"**.
-
-> **Offline Note:** Open the application once while connected to the internet so the CLIP vision weights (~90 MB) and vector map runtime can cache. Afterward, identification and mapping work completely offline in the wilderness!
+> **Offline Wilderness Tip:** Open WildTrail once while connected to Wi-Fi so the vision model weights (~90 MB) and vector map runtime can cache. Once cached, the entire app functions offline in the wilderness!
 
 ---
 
-## 🏆 Hackathon Credits & Open Source Attribution
+## 🎨 Design Principles
 
-* **Author:** [Arnav Patel](https://github.com/XiaoArnav) (`@XiaoArnav`)
-* **Event:** Hacktoberfest 2026
-* **Open Source Libraries:**
-  * [Transformers.js](https://github.com/xenova/transformers.js) by Xenova / Hugging Face
-  * [MapLibre GL JS](https://maplibre.org/) & [PMTiles](https://github.com/protomaps/PMTiles) by Protomaps
-  * Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
-* **License:** [MIT](LICENSE) © 2026 Arnav Patel
+* **Nature First:** Dark botanical emerald palette (`#070e0a`, `#10b981`) illuminated with sunlit amber accents (`#f59e0b`) and bioluminescent spores.
+* **Useful Over Noisy:** Clean, distraction-free UI designed to keep you looking up at the trees rather than staring down at notifications.
+* **Private by Design:** Observations, locations, and photos remain solely in your device's browser sandbox.
+* **Built for the Mud:** PWA caching and offline preparation ensure reliable performance beyond cellular coverage.
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Extended species taxonomy catalogue and identification guides.
+- [ ] Richer field notes, weather telemetry, and observation journals.
+- [ ] Multi-region offline map package selector.
+- [ ] High-contrast accessibility modes and low-power outdoor tracking.
+- [ ] GPX and KML export formats for trail enthusiasts.
+
+---
+
+## 🤝 Contributing & Hacktoberfest 2026
+
+Contributions, bug reports, and pull requests are warmly welcomed! WildTrail is an active open-source project participating in **Hacktoberfest 2026**.
+
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feat/your-improvement`
+3. Test your changes thoroughly across desktop and mobile browsers.
+4. Submit a clear pull request with descriptions and UI screenshots.
+
+> **Hacktoberfest Quality Standards:** In alignment with official Hacktoberfest rules, contributions must add genuine value (e.g. bug fixes, new species classifications, accessibility improvements, or offline optimizations). Automated copy-paste PRs or trivial whitespace edits will not be accepted.
+
+---
+
+## 📜 Credits & Open Source Attribution
+
+WildTrail is built on open-source projects and public geographic data:
+
+* [Transformers.js](https://huggingface.co/docs/transformers.js) by Xenova / Hugging Face
+* [MapLibre GL JS](https://maplibre.org/)
+* [PMTiles](https://github.com/protomaps/PMTiles) by Protomaps
+* Map vector data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
+
+---
+
+## ⚖️ License
+
+Distributed under the [MIT License](LICENSE). © 2026 Arnav Patel.
+
+---
+
+<div align="center">
+
+**Made for the curious. Inspired by the wild.** 🌱
+
+[Explore WildTrail](https://wildtrail-chi.vercel.app) · [View Source Code](https://github.com/XiaoArnav/wildtrail)
+
+</div>
