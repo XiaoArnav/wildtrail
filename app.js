@@ -3281,7 +3281,7 @@ $('maps-manager-modal').onclick = e => {
   if (e.target === $('maps-manager-modal')) show('maps-manager-modal', false);
 };
 
-$('map-source-badge').onclick = () => openMapsManagerModal();
+if ($('map-source-badge')) $('map-source-badge').onclick = () => openMapsManagerModal();
 $('bounds-recenter-btn').onclick = () => {
   if (activeRegion && mapInstance) {
     mapInstance.flyTo({
