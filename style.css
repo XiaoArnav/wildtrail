@@ -131,6 +131,37 @@ h1 {
   color: #fef3c7;
 }
 
+.header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.contrast-toggle-btn {
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  background: rgba(6, 15, 9, 0.78);
+  color: #fef3c7;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.contrast-toggle-btn[aria-pressed="true"] {
+  background: rgba(251, 191, 36, 0.22);
+  border-color: rgba(251, 191, 36, 0.65);
+  color: #fff6cc;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.24);
+}
+
+.contrast-toggle-btn:active {
+  transform: scale(0.98);
+}
+
 /* Main Container */
 main {
   max-width: 480px;
@@ -3196,8 +3227,62 @@ canvas#postcard-canvas {
   transform: scale(1.1);
 }
 
+body.high-contrast {
+  --bg: #040905;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #133824 0%, #020403 100%);
+  --panel: rgba(10, 25, 16, 0.95);
+  --panel-solid: #0b1f13;
+  --card-border: rgba(110, 231, 183, 0.48);
+  --text: #ffffff;
+  --muted: #d2e3d8;
+  --accent: #6ee7b7;
+  --accent-light: #a7f3d0;
+  --accent-glow: rgba(110, 231, 183, 0.45);
+}
+
+body.high-contrast .fab-btn {
+  border-color: rgba(167, 243, 208, 0.8);
+  box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.3), 0 6px 16px rgba(0, 0, 0, 0.65);
+}
+
+body.high-contrast .stats .stat {
+  border-color: rgba(167, 243, 208, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(6, 78, 59, 0.75);
+}
+
+body.high-contrast .stats .stat span {
+  color: #e7f5ec;
+}
+
+body.high-contrast .tile.stamp-tile,
+body.high-contrast .stamp-front,
+body.high-contrast .stamp-back {
+  box-shadow: 0 0 0 2px rgba(18, 34, 24, 0.62), 0 12px 28px rgba(0, 0, 0, 0.75);
+}
+
+body.high-contrast .stamp-tile-frame,
+body.high-contrast .stamp-photo-frame,
+body.high-contrast .stamp-inner-mat {
+  border-color: #102819;
+}
+
+body.high-contrast .stamp-tile-tag,
+body.high-contrast .stamp-tile-bot,
+body.high-contrast .stamp-top-bar,
+body.high-contrast .stamp-bottom-bar,
+body.high-contrast .stamp-caption-name {
+  color: #102819;
+}
+
 /* Mobile Responsiveness & Touch Optimizations */
 @media (max-width: 480px) {
+  .header-right {
+    gap: 6px;
+  }
+  .contrast-toggle-btn {
+    font-size: 11px;
+    padding: 5px 9px;
+  }
   .stamp-modal-stage {
     padding: 8px;
   }
