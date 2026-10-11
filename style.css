@@ -791,18 +791,30 @@ button.full-width {
 .result-media {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 4 / 3;
+  max-height: 380px;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: #000;
+  background: linear-gradient(180deg, #0e1913 0%, #070d0a 100%);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   cursor: pointer;
+  transition: aspect-ratio var(--trans-fast);
 }
 
-.result-media img {
+.result-media img,
+#result-img,
+.species-preview-image {
+  display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
+  max-height: 380px;
+  object-fit: contain;
+  object-position: center;
 }
 
 .result-zoom-hint {
@@ -1622,13 +1634,40 @@ button.full-width {
   border-radius: var(--radius-md);
   overflow: hidden;
   margin: 10px 0;
-  background: #000;
+  background: linear-gradient(180deg, #0e1913 0%, #070d0a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stamp-photo-frame img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+.modal-image-wrap {
+  width: 100%;
+  max-height: 380px;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: linear-gradient(180deg, #0e1913 0%, #070d0a 100%);
+  position: relative;
+}
+
+.modal-image-wrap img,
+#modal-img {
+  width: 100%;
+  height: 100%;
+  max-height: 380px;
+  object-fit: contain;
+  object-position: center;
   display: block;
 }
 
