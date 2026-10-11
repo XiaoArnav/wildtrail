@@ -121,6 +121,7 @@ async function updateTrainerChip() {
 
 async function boot() {
   initMapInteractions();
+  init3DCardPhysics();
   const name = await metaGet('name');
   if (!name) { showView('welcome'); return; }
   await updateTrainerChip();
@@ -306,11 +307,11 @@ async function renderCollection() {
 
   finds.forEach((f, i) => {
     const t = document.createElement('div');
-    t.className = 'tile';
+    t.className = 'tile stamp-tile';
     t.style.animationDelay = `${Math.min(i * 35, 400)}ms`;
-    t.onclick = () => openDetailModal(f);
+    t.onclick = () => open3DStampCard(f);
 
-    // Interactive 3D tilt & holographic sheen
+    // Interactive 3D tilt & holographic sheen on the stamp
     t.onmousemove = e => {
       const rect = t.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
@@ -319,66 +320,191 @@ async function renderCollection() {
       t.style.setProperty('--sheen-y', `${(y * 100).toFixed(1)}%`);
       const rotX = (0.5 - y) * 16;
       const rotY = (x - 0.5) * 16;
-      t.style.transform = `perspective(600px) rotateX(${rotX.toFixed(1)}deg) rotateY(${rotY.toFixed(1)}deg) scale3d(1.03, 1.03, 1.03)`;
+      t.style.transform = `perspective(600px) rotateX(${rotX.toFixed(1)}deg) rotateY(${rotY.toFixed(1)}deg) scale3d(1.04, 1.04, 1.04)`;
     };
     t.onmouseleave = () => {
       t.style.transform = 'perspective(600px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
     };
 
-    const sheen = document.createElement('div');
-    sheen.className = 'tile-sheen';
+    // Scalloped Perforated Stamp Edge
+    const perfs = document.createElement('div');
+    perfs.className = 'stamp-perforations';
 
-    const chip = document.createElement('span');
-    chip.className = 'tile-chip';
-    chip.textContent = `${ICONS[f.type] || '🌿'} ${f.type}`;
+    // Top Denomination & Type Symbol
+    const tag = document.createElement('div');
+    tag.className = 'stamp-tile-tag';
+    tag.innerHTML = `<span>25P</span> <span>${ICONS[f.type] || '🌿'}</span>`;
 
+    // Inner Specimen Frame (Photo only, pristine vintage mount!)
+    const frame = document.createElement('div');
+    frame.className = 'stamp-tile-frame';
     const img = document.createElement('img');
     img.src = f.photo;
     img.alt = f.name;
     img.loading = 'lazy';
+    frame.appendChild(img);
 
-    const scrim = document.createElement('div');
-    scrim.className = 'tile-scrim';
-    const n = document.createElement('b');
-    n.textContent = f.name;
-    const s = document.createElement('small');
-    s.textContent = new Date(f.time).toLocaleDateString([], { month: 'short', day: 'numeric' });
-    scrim.append(n, s);
+    // Bottom Vintage Postal Country Text
+    const bot = document.createElement('div');
+    bot.className = 'stamp-tile-bot';
+    bot.textContent = 'INDIA · WT';
 
-    t.append(sheen, chip, img, scrim);
+    const sheen = document.createElement('div');
+    sheen.className = 'tile-sheen';
+
+    t.append(perfs, tag, frame, bot, sheen);
     grid.appendChild(t);
   });
 }
 
-function openDetailModal(find) {
-  $('modal-img').src = find.photo;
-  $('modal-name').textContent = find.name;
-  $('modal-type-badge').textContent = `${ICONS[find.type] || '🌿'} ${find.type.toUpperCase()}`;
-  $('modal-date').textContent = new Date(find.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-  $('modal-coords').textContent = (find.lat != null && find.lon != null)
+// ---------- Feature: Interactive Floating 3D Stamp & Postcard ----------
+let isCardFlipped = false;
+let currentStampFind = null;
+let cardTouchStartX = 0;
+let cardTouchStartY = 0;
+let cardTouchMoved = false;
+
+function open3DStampCard(find) {
+  currentStampFind = find;
+  isCardFlipped = false;
+
+  const card = $('stamp-3d-card');
+  if (card) {
+    card.classList.remove('is-flipped');
+    card.style.transform = 'perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)';
+  }
+
+  // Front Stamp Face (Photo only, framed in vintage postage stamp)
+  $('stamp-front-img').src = find.photo;
+  $('stamp-front-type').textContent = ICONS[find.type] || '🌿';
+
+  // Back Postcard Face (All details & telemetry)
+  $('stamp-back-name').textContent = find.name;
+  $('stamp-back-badge').textContent = `${ICONS[find.type] || '🌿'} ${find.type.toUpperCase()}`;
+  $('stamp-back-date').textContent = new Date(find.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  $('stamp-back-guessed').textContent = find.guessed ? find.guessed : 'Manual Observation';
+  
+  metaGet('name').then(name => {
+    if ($('stamp-back-observer')) $('stamp-back-observer').textContent = name || 'Trail Naturalist';
+  });
+
+  const stampDateStr = new Date(find.time).toLocaleDateString([], { month: 'short', year: 'numeric' }).toUpperCase();
+  if ($('stamp-back-postmark-date')) $('stamp-back-postmark-date').textContent = stampDateStr;
+
+  const coordsText = (find.lat != null && find.lon != null)
     ? `${find.lat.toFixed(4)}°, ${find.lon.toFixed(4)}°`
     : 'No GPS logged';
-  $('modal-guessed').textContent = find.guessed ? `AI: ${find.guessed}` : 'Manual entry';
+  if ($('stamp-back-coords')) $('stamp-back-coords').textContent = coordsText;
 
-  $('modal-postcard-btn').onclick = () => {
+  // Actions on the back of the card
+  $('stamp-action-postcard').onclick = e => {
+    e.stopPropagation();
     openPostcardModal(find);
   };
 
-  $('modal-delete-btn').onclick = async () => {
+  $('stamp-action-delete').onclick = async e => {
+    e.stopPropagation();
     if (confirm(`Remove "${find.name}" from your journal?`)) {
       await delOne('finds', find.id);
-      show('detail-modal', false);
+      show('stamp-modal', false);
       await updateTrainerChip();
       renderCollection();
     }
   };
-  show('detail-modal', true);
+
+  show('stamp-modal', true);
 }
 
-$('modal-close-btn').onclick = () => show('detail-modal', false);
-$('detail-modal').onclick = e => {
-  if (e.target === $('detail-modal')) show('detail-modal', false);
-};
+function init3DCardPhysics() {
+  const card = $('stamp-3d-card');
+  if (!card || card._physicsInit) return;
+  card._physicsInit = true;
+
+  // Touch controls for mobile (Finger movement)
+  card.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    cardTouchStartX = e.touches[0].clientX;
+    cardTouchStartY = e.touches[0].clientY;
+    cardTouchMoved = false;
+  }, { passive: true });
+
+  card.addEventListener('touchmove', e => {
+    if (e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - cardTouchStartX;
+    const dy = e.touches[0].clientY - cardTouchStartY;
+    if (Math.hypot(dx, dy) > 6) {
+      cardTouchMoved = true;
+    }
+
+    const rect = card.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const normX = Math.max(-1, Math.min(1, (e.touches[0].clientX - centerX) / (rect.width / 2)));
+    const normY = Math.max(-1, Math.min(1, (e.touches[0].clientY - centerY) / (rect.height / 2)));
+
+    const rotX = -normY * 22;
+    const rotY = normX * 22 + (isCardFlipped ? 180 : 0);
+
+    card.style.transform = `perspective(1000px) rotateX(${rotX.toFixed(1)}deg) rotateY(${rotY.toFixed(1)}deg) scale(1.05)`;
+    card.style.setProperty('--glare-x', `${((normX * 0.5 + 0.5) * 100).toFixed(0)}%`);
+    card.style.setProperty('--glare-y', `${((normY * 0.5 + 0.5) * 100).toFixed(0)}%`);
+  }, { passive: true });
+
+  card.addEventListener('touchend', () => {
+    if (!cardTouchMoved) {
+      // Tap without drag -> 3D Flip!
+      toggleCardFlip();
+    } else {
+      // Spring back to face
+      card.style.transform = isCardFlipped
+        ? 'perspective(1000px) rotateY(180deg)'
+        : 'perspective(1000px) rotateY(0deg)';
+    }
+  });
+
+  // Mouse tilt on desktop
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const normX = Math.max(-1, Math.min(1, (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)));
+    const normY = Math.max(-1, Math.min(1, (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2)));
+
+    const rotX = -normY * 20;
+    const rotY = normX * 20 + (isCardFlipped ? 180 : 0);
+
+    card.style.transform = `perspective(1000px) rotateX(${rotX.toFixed(1)}deg) rotateY(${rotY.toFixed(1)}deg) scale(1.05)`;
+    card.style.setProperty('--glare-x', `${((normX * 0.5 + 0.5) * 100).toFixed(0)}%`);
+    card.style.setProperty('--glare-y', `${((normY * 0.5 + 0.5) * 100).toFixed(0)}%`);
+  });
+
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = isCardFlipped
+      ? 'perspective(1000px) rotateY(180deg)'
+      : 'perspective(1000px) rotateY(0deg)';
+  });
+
+  card.addEventListener('click', e => {
+    if (e.target.closest('button')) return;
+    toggleCardFlip();
+  });
+
+  function toggleCardFlip() {
+    isCardFlipped = !isCardFlipped;
+    card.classList.toggle('is-flipped', isCardFlipped);
+    card.style.transform = isCardFlipped
+      ? 'perspective(1000px) rotateY(180deg)'
+      : 'perspective(1000px) rotateY(0deg)';
+  }
+
+  // Close handlers
+  $('stamp-modal-close').onclick = () => show('stamp-modal', false);
+  $('stamp-modal').onclick = e => {
+    if (e.target === $('stamp-modal')) show('stamp-modal', false);
+  };
+}
+
+function openDetailModal(find) {
+  open3DStampCard(find);
+}
 
 // ---------- Feature: Vintage Field Postcard & Herbarium Archive Card ----------
 let activePostcardFind = null;

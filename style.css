@@ -1916,3 +1916,458 @@ canvas#postcard-canvas {
   from { opacity: 0; transform: scale(0.96) translateY(12px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* =====================================================================
+   VINTAGE POSTAGE STAMPS & FLOATING 3D CARD SECTION
+   ===================================================================== */
+
+/* Vintage Postage Stamp Grid Tiles */
+.tile.stamp-tile {
+  background: #fbf6ec;
+  border: none;
+  border-radius: 3px;
+  aspect-ratio: 4 / 5;
+  padding: 8px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 10px rgba(245, 158, 11, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.tile.stamp-tile:hover {
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), 0 0 20px rgba(245, 158, 11, 0.35);
+}
+
+/* Scalloped Perforated Stamp Teeth */
+.stamp-perforations {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 50% 0px, rgba(4, 10, 6, 0.98) 3.5px, transparent 4px),
+    radial-gradient(circle at 50% 100%, rgba(4, 10, 6, 0.98) 3.5px, transparent 4px),
+    radial-gradient(circle at 0px 50%, rgba(4, 10, 6, 0.98) 3.5px, transparent 4px),
+    radial-gradient(circle at 100% 50%, rgba(4, 10, 6, 0.98) 3.5px, transparent 4px);
+  background-size: 13px 100%, 13px 100%, 100% 13px, 100% 13px;
+  background-position: top center, bottom center, left center, right center;
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  z-index: 6;
+}
+
+.stamp-tile-tag {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: Georgia, serif;
+  font-size: 10px;
+  font-weight: 800;
+  color: #243e2d;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  padding: 0 2px;
+  z-index: 2;
+}
+
+.stamp-tile-frame {
+  flex: 1;
+  position: relative;
+  border: 1.5px solid #243e2d;
+  outline: 1px solid rgba(140, 109, 54, 0.45);
+  outline-offset: -3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #112417;
+  z-index: 2;
+}
+
+.stamp-tile-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.stamp-tile-bot {
+  text-align: center;
+  font-family: Georgia, serif;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #3f5945;
+  margin-top: 4px;
+  z-index: 2;
+}
+
+/* Floating 3D Stamp & Postcard Modal */
+.stamp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  background: rgba(3, 10, 6, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  animation: stampFadeIn 0.25s ease-out;
+}
+
+@keyframes stampFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.stamp-modal-stage {
+  perspective: 1200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+}
+
+.stamp-3d-card {
+  width: 320px;
+  height: 440px;
+  position: relative;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
+  touch-action: none;
+  filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 30px rgba(245, 158, 11, 0.18));
+}
+
+.stamp-card-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+/* Front Face */
+.stamp-front {
+  background: #fbf6ec;
+  transform: rotateY(0deg);
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.stamp-inner-mat {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fbf6ec;
+  border: 2px solid #243e2d;
+  outline: 1px solid rgba(140, 109, 54, 0.55);
+  outline-offset: -5px;
+  padding: 8px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.stamp-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: Georgia, serif;
+  font-size: 11px;
+  font-weight: 800;
+  color: #243e2d;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.stamp-photo-frame {
+  flex: 1;
+  position: relative;
+  border: 1.5px solid #243e2d;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #112417;
+}
+
+.stamp-photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.stamp-bottom-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: Georgia, serif;
+  font-size: 9px;
+  font-weight: 800;
+  color: #3f5945;
+  letter-spacing: 1px;
+  margin-top: 6px;
+}
+
+.stamp-flip-tip {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 22, 15, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fef3c7;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: pulseTip 2s ease-in-out infinite;
+  z-index: 10;
+}
+
+@keyframes pulseTip {
+  0%, 100% { opacity: 0.9; transform: translateX(-50%) scale(1); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+}
+
+/* Back Face */
+.stamp-back {
+  background: #f6efe0;
+  transform: rotateY(180deg);
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.stamp-3d-card.is-flipped {
+  transform: perspective(1200px) rotateY(180deg);
+}
+
+.postcard-back-mat {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f6efe0;
+  border: 2px solid #8c6d36;
+  outline: 1px solid rgba(40, 68, 49, 0.4);
+  outline-offset: -5px;
+  padding: 12px;
+  box-sizing: border-box;
+  justify-content: space-between;
+}
+
+.postcard-top-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(140, 110, 70, 0.3);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.postcard-header-title {
+  font-family: Georgia, serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #3b2c1c;
+}
+
+.postcard-mini-stamp {
+  width: 48px;
+  height: 48px;
+  border: 1.5px dashed rgba(168, 42, 42, 0.85);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(168, 42, 42, 0.9);
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1.1;
+  transform: rotate(-8deg);
+}
+
+.postcard-content-columns {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.postcard-info-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.postcard-specimen-name {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: #162a1b;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.postcard-specimen-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  width: fit-content;
+}
+
+.postcard-data-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.postcard-data-row small {
+  font-size: 9px;
+  font-weight: 700;
+  color: #786955;
+  text-transform: uppercase;
+}
+
+.postcard-data-row b {
+  font-weight: 600;
+  color: #142418;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.postcard-vertical-rule {
+  width: 1px;
+  background: repeating-linear-gradient(to bottom, rgba(140, 110, 70, 0.4) 0px, rgba(140, 110, 70, 0.4) 4px, transparent 4px, transparent 8px);
+}
+
+.postcard-address-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.postcard-telemetry-box {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.postcard-telemetry-box small {
+  font-size: 8px;
+  font-weight: 800;
+  color: #786955;
+  text-transform: uppercase;
+}
+
+.telemetry-line {
+  font-family: monospace;
+  font-size: 10px;
+  color: #1e3626;
+  border-bottom: 1px solid rgba(140, 110, 70, 0.25);
+  padding-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.postcard-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.stamp-act-btn {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.stamp-act-btn.primary {
+  background: #10b981;
+  color: #051a0e;
+}
+
+.stamp-act-btn.danger {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.postcard-flip-back-prompt {
+  text-align: center;
+  font-size: 9px;
+  color: #7a6e5b;
+  font-style: italic;
+  border-top: 1px solid rgba(140, 110, 70, 0.2);
+  padding-top: 5px;
+}
+
+/* Glare overlay */
+.stamp-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 4px;
+  z-index: 8;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 65%);
+}
+
+.stamp-close-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 999;
+}
+
+.stamp-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}

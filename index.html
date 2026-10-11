@@ -335,7 +335,97 @@
   <span>✨ You've entered uncharted ground!</span>
 </div>
 
-<!-- Detail Modal for inspecting collection items -->
+<!-- Floating 3D Stamp & Postcard Modal -->
+<div id="stamp-modal" class="modal-backdrop stamp-modal-backdrop hidden">
+  <button id="stamp-modal-close" class="stamp-close-btn" aria-label="Close card viewer">&times;</button>
+  
+  <div class="stamp-modal-stage">
+    <div id="stamp-3d-card" class="stamp-3d-card">
+      
+      <!-- FRONT FACE: Vintage Postage Stamp (Photo Only + Stamp Frame) -->
+      <div class="stamp-card-face stamp-front">
+        <div class="stamp-perforations"></div>
+        <div class="stamp-inner-mat">
+          <div class="stamp-top-bar">
+            <span class="stamp-denom-tag">25 P · WT</span>
+            <span id="stamp-front-type" class="stamp-type-tag">🌿</span>
+          </div>
+          <div class="stamp-photo-frame">
+            <img id="stamp-front-img" src="" alt="Specimen stamp">
+          </div>
+          <div class="stamp-bottom-bar">
+            <span class="stamp-caption-country">WILDTRAIL · INDIA</span>
+            <span class="stamp-caption-series">TOUCH GRASS · 2026</span>
+          </div>
+        </div>
+        <div class="stamp-glare"></div>
+        <div class="stamp-flip-tip">🔄 Tap to flip · Drag in 3D</div>
+      </div>
+
+      <!-- BACK FACE: Vintage Postcard with Details -->
+      <div class="stamp-card-face stamp-back">
+        <div class="stamp-perforations back-perf"></div>
+        <div class="postcard-back-mat">
+          <div class="postcard-top-banner">
+            <span class="postcard-header-title">POST CARD · FIELD ARCHIVE</span>
+            <div class="postcard-mini-stamp">
+              <span class="mini-postmark-top">WILDTRAIL</span>
+              <span id="stamp-back-postmark-date" class="mini-postmark-mid">OCT 2026</span>
+              <span class="mini-postmark-bot">VERIFIED</span>
+            </div>
+          </div>
+          
+          <div class="postcard-content-columns">
+            <!-- Left Side: Specimen Info -->
+            <div class="postcard-info-col">
+              <h3 id="stamp-back-name" class="postcard-specimen-name"></h3>
+              <span id="stamp-back-badge" class="postcard-specimen-badge"></span>
+              
+              <div class="postcard-data-row">
+                <small>📅 LOGGED</small>
+                <b id="stamp-back-date"></b>
+              </div>
+              <div class="postcard-data-row">
+                <small>🤖 IDENTIFICATION</small>
+                <b id="stamp-back-guessed"></b>
+              </div>
+              <div class="postcard-data-row">
+                <small>👤 OBSERVER</small>
+                <b id="stamp-back-observer"></b>
+              </div>
+            </div>
+
+            <!-- Vertical Divider -->
+            <div class="postcard-vertical-rule"></div>
+
+            <!-- Right Side: Telemetry & Actions -->
+            <div class="postcard-address-col">
+              <div class="postcard-telemetry-box">
+                <small>📍 GPS TELEMETRY:</small>
+                <div id="stamp-back-coords" class="telemetry-line coords"></div>
+                <div class="telemetry-line">Naturalist Field Journal</div>
+                <div class="telemetry-line">100% On-Device · Local</div>
+              </div>
+
+              <div class="postcard-card-actions">
+                <button id="stamp-action-postcard" class="stamp-act-btn primary">📯 Export Postcard</button>
+                <button id="stamp-action-delete" class="stamp-act-btn danger">🗑️ Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="postcard-flip-back-prompt">
+            <span>🔄 Tap anywhere to flip back to stamp</span>
+          </div>
+        </div>
+        <div class="stamp-glare back-glare"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal for inspecting collection items (Fallback) -->
 <div id="detail-modal" class="modal-backdrop hidden">
   <div class="modal-sheet">
     <button id="modal-close-btn" class="modal-close" aria-label="Close modal">&times;</button>
