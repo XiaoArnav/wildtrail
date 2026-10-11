@@ -93,7 +93,7 @@ const show = (id, on = true) => $(id).classList.toggle('hidden', !on);
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === name));
-  $('nav').classList.remove('hidden');
+  $('nav').classList.toggle('hidden', name === 'welcome');
   if (name === 'collection') renderCollection();
   if (name === 'map') {
     if (mapInstance) mapInstance.resize();
@@ -113,177 +113,29 @@ window.addEventListener('resize', () => {
 
 // ---------- Profile (local only, no login server) ----------
 async function updateTrainerChip() {
-  let name = await metaGet('name');
-  if (!name) name = 'Arnav';
+  const name = await metaGet('name');
+  if (!name) return;
   const allFinds = await getAll('finds');
-  if ($('who')) {
-    $('who').textContent = `🌿 ${name} · ${allFinds.length}`;
-  }
-}
-
-if ($('who')) {
-  $('who').onclick = async () => {
-    const cur = (await metaGet('name')) || 'Arnav';
-    const val = prompt('Edit Explorer Name:', cur);
-    if (val && val.trim()) {
-      await metaSet('name', val.trim());
-      await updateTrainerChip();
-    }
-  };
-}
-
-// ---------- Starter Specimen Pre-seeding (Ensures Field Guide & Territory are alive on first visit) ----------
-async function seedStarterFinds() {
-  const existing = await getAll('finds');
-  if (existing && existing.length > 0) return;
-
-  function createSpecimenCanvasPhoto(title, subtitle, color1, color2, emoji) {
-    const c = document.createElement('canvas');
-    c.width = 800;
-    c.height = 800;
-    const ctx = c.getContext('2d');
-
-    // Rich botanical nature background
-    const grad = ctx.createRadialGradient(400, 360, 60, 400, 400, 500);
-    grad.addColorStop(0, color1);
-    grad.addColorStop(1, color2);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 800, 800);
-
-    // Vignette
-    const vig = ctx.createRadialGradient(400, 400, 260, 400, 400, 460);
-    vig.addColorStop(0, 'rgba(0,0,0,0)');
-    vig.addColorStop(1, 'rgba(0,0,0,0.6)');
-    ctx.fillStyle = vig;
-    ctx.fillRect(0, 0, 800, 800);
-
-    // Decorative botanical aperture circles
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(400, 350, 220, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(400, 350, 240, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Central emoji illustration
-    ctx.font = '160px system-ui, Apple Color Emoji, Segoe UI Emoji';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-    ctx.shadowBlur = 28;
-    ctx.shadowOffsetY = 12;
-    ctx.fillText(emoji, 400, 340);
-    ctx.shadowColor = 'transparent';
-
-    // Archival banner card at bottom
-    ctx.fillStyle = 'rgba(7, 14, 10, 0.9)';
-    ctx.fillRect(50, 610, 700, 140);
-    ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(50, 610, 700, 140);
-
-    // Specimen typography
-    ctx.font = 'bold 32px Georgia, serif';
-    ctx.fillStyle = '#fbfbf9';
-    ctx.textAlign = 'center';
-    ctx.fillText(title, 400, 665);
-
-    ctx.font = 'italic 19px Georgia, serif';
-    ctx.fillStyle = '#a7f3d0';
-    ctx.fillText(subtitle, 400, 712);
-
-    return c.toDataURL('image/jpeg', 0.92);
-  }
-
-  const starter1 = {
-    name: 'Royal Bengal Tiger',
-    type: 'animal',
-    guessed: 'Bengal Tiger (Panthera tigris)',
-    photo: createSpecimenCanvasPhoto('Royal Bengal Tiger', 'Panthera tigris · Apex Predator', '#245a34', '#061a0e', '🐅'),
-    time: Date.now() - 3600000 * 24 * 2,
-    lat: 28.6139,
-    lon: 77.2090,
-    uncharted: true
-  };
-
-  const starter2 = {
-    name: 'Himalayan Monal',
-    type: 'bird',
-    guessed: 'Himalayan Monal (Lophophorus impejanus)',
-    photo: createSpecimenCanvasPhoto('Himalayan Monal', 'Lophophorus impejanus · State Bird', '#184d63', '#061d29', '🦚'),
-    time: Date.now() - 3600000 * 24 * 5,
-    lat: 28.6155,
-    lon: 77.2115,
-    uncharted: false
-  };
-
-  const starter3 = {
-    name: 'Ghost Orchid',
-    type: 'flower',
-    guessed: 'Ghost Orchid (Dendrophylax lindenii)',
-    photo: createSpecimenCanvasPhoto('Ghost Orchid', 'Dendrophylax lindenii · Rare Flora', '#4a3266', '#140b21', '🌸'),
-    time: Date.now() - 3600000 * 24 * 8,
-    lat: 28.6120,
-    lon: 77.2065,
-    uncharted: true
-  };
-
-  await putAll('finds', starter1);
-  await putAll('finds', starter2);
-  await putAll('finds', starter3);
-
-  // Also seed starter GPS trail if empty so Territory has path and fog-of-war
-  const existingTrack = await getAll('track');
-  if (!existingTrack || existingTrack.length === 0) {
-    const starterTrack = [
-      { lat: 28.6110, lon: 77.2050, time: Date.now() - 3600000 * 24 * 2 },
-      { lat: 28.6120, lon: 77.2065, time: Date.now() - 3600000 * 24 * 2, uncharted: true },
-      { lat: 28.6139, lon: 77.2090, time: Date.now() - 3600000 * 24 * 2, uncharted: true },
-      { lat: 28.6155, lon: 77.2115, time: Date.now() - 3600000 * 24 * 2 }
-    ];
-    for (const pt of starterTrack) {
-      await putAll('track', pt);
-    }
-  }
+  $('who').textContent = `🌿 ${name} · ${allFinds.length}`;
 }
 
 async function boot() {
   initMapInteractions();
   init3DCardPhysics();
   initCameraControls();
-
-  let name = await metaGet('name');
-  if (!name) {
-    name = 'Arnav';
-    await metaSet('name', name);
-  }
-
-  const allFinds = await getAll('finds');
-  if (!allFinds || allFinds.length === 0) {
-    await seedStarterFinds();
-  }
-
+  const name = await metaGet('name');
+  if (!name) { showView('welcome'); return; }
   await updateTrainerChip();
   showView('capture');
-  await loadTrack();
+  loadTrack();
 }
-
 $('start-btn').onclick = async () => {
-  const name = $('name-input').value.trim() || 'Arnav';
+  const name = $('name-input').value.trim() || 'Explorer';
   await metaSet('name', name);
   await updateTrainerChip();
   showView('capture');
-  await loadTrack();
+  loadTrack();
 };
-
-if ($('empty-scan-btn')) {
-  $('empty-scan-btn').onclick = () => showView('capture');
-}
 
 // ---------- Vintage Mechanical Field Audio Engine ----------
 let audioCtx = null;
@@ -480,42 +332,11 @@ function setCameraZoom(z) {
   }
 }
 
-function updateCameraViewportAspect() {
-  const v = $('video');
-  const camBox = document.querySelector('.camera');
-  if (!v || !camBox) return;
-  if (v.videoWidth && v.videoHeight) {
-    const aspect = v.videoWidth / v.videoHeight;
-    camBox.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
-    if (aspect < 1) {
-      // Portrait stream (e.g. 9:16 or 3:4): constrain width so it hugs the vertical video neatly
-      camBox.style.maxWidth = `min(100%, calc(72vh * ${aspect}))`;
-    } else {
-      // Landscape or square stream: fill column width
-      camBox.style.maxWidth = '100%';
-    }
-  }
-}
-
-function resetCameraViewportAspect() {
-  const camBox = document.querySelector('.camera');
-  if (camBox) {
-    camBox.style.aspectRatio = '';
-    camBox.style.maxWidth = '';
-  }
-}
-
 function initCameraControls() {
   const v = $('video');
   const camBox = document.querySelector('.camera');
   if (!v || v._cameraControlsInit) return;
   v._cameraControlsInit = true;
-
-  // Track video aspect ratio dynamically to ensure 100% full uncropped field of view
-  v.addEventListener('loadedmetadata', updateCameraViewportAspect);
-  v.addEventListener('resize', updateCameraViewportAspect);
-  window.addEventListener('resize', updateCameraViewportAspect);
-  window.addEventListener('orientationchange', updateCameraViewportAspect);
 
   // 1. Botanical Emerald & Gold Tap-to-Focus Reticle
   v.addEventListener('click', async e => {
@@ -524,9 +345,9 @@ function initCameraControls() {
     if (Date.now() - lastPinchTime < 350 || isSlidingZoom) return;
     if (e.target.closest('#camera-zoom-container') || e.target.closest('.viewfinder-top-bar')) return;
 
-    const camRect = camBox ? camBox.getBoundingClientRect() : v.getBoundingClientRect();
-    const x = e.clientX - camRect.left;
-    const y = e.clientY - camRect.top;
+    const rect = v.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     const reticle = $('focus-reticle');
     if (reticle) {
@@ -541,9 +362,8 @@ function initCameraControls() {
           const caps = currentVideoTrack.getCapabilities ? currentVideoTrack.getCapabilities() : {};
           const advanced = [];
 
-          const vRect = v.getBoundingClientRect();
-          const normX = Math.max(0, Math.min(1, (e.clientX - vRect.left) / vRect.width));
-          const normY = Math.max(0, Math.min(1, (e.clientY - vRect.top) / vRect.height));
+          const normX = Math.max(0, Math.min(1, x / rect.width));
+          const normY = Math.max(0, Math.min(1, y / rect.height));
 
           if (caps.pointsOfInterest) {
             advanced.push({ pointsOfInterest: [{ x: normX, y: normY }] });
@@ -793,7 +613,6 @@ function initCameraControls() {
 
           pending = { photo: fullPhotoUrl, guesses: [] };
           $('result-img').src = fullPhotoUrl;
-          updateResultMediaAspect();
           $('guesses').textContent = 'Identifying 48MP capture with on-device AI...';
           $('name-field').value = '';
           show('result', true);
@@ -929,7 +748,7 @@ async function switchCamera() {
     let newStream = null;
     const reqConstraints = {
       width: { ideal: 1920 },
-      height: { ideal: 1440 }
+      height: { ideal: 1080 }
     };
 
     if (targetDeviceId) {
@@ -970,7 +789,6 @@ async function switchCamera() {
 
     v.srcObject = stream;
     await v.play();
-    updateCameraViewportAspect();
 
     // 5. Apply continuous autofocus
     await applyContinuousAutofocus(newTrack);
@@ -1036,7 +854,7 @@ async function startCamera(facingMode = currentFacingMode, preferredDeviceId = n
     let newStream = null;
     const baseConstraints = {
       width: { ideal: 1920 },
-      height: { ideal: 1440 }
+      height: { ideal: 1080 }
     };
 
     if (preferredDeviceId) {
@@ -1077,7 +895,6 @@ async function startCamera(facingMode = currentFacingMode, preferredDeviceId = n
     const v = $('video');
     v.srcObject = stream;
     await v.play();
-    updateCameraViewportAspect();
 
     show('cam-msg', false);
     $('snap-btn').disabled = false;
@@ -1166,7 +983,6 @@ function stopCamera() {
   }
   const reticle = $('focus-reticle');
   if (reticle) reticle.classList.add('hidden');
-  resetCameraViewportAspect();
 }
 
 if (navigator.mediaDevices?.addEventListener) {
@@ -1205,49 +1021,6 @@ function warmModel() {
 
 let pending = null; // the capture waiting for confirmation
 
-function updateResultMediaAspect() {
-  const img = $('result-img');
-  if (!img) return;
-  const media = img.closest('.result-media');
-  if (img.naturalWidth && img.naturalHeight && media) {
-    media.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
-  }
-}
-
-if ($('result-img')) {
-  $('result-img').addEventListener('load', updateResultMediaAspect);
-  $('result-img').onclick = () => {
-    if (pending?.photo) {
-      openPhotoLightbox(pending.photo, $('name-field')?.value || 'Captured Specimen');
-    }
-  };
-}
-
-// ---------- Fullscreen Photo Lightbox ----------
-function openPhotoLightbox(photoUrl, title = 'Specimen Photo') {
-  const modal = $('lightbox-modal');
-  const img = $('lightbox-img');
-  const cap = $('lightbox-caption');
-  if (!modal || !img) return;
-  img.src = photoUrl;
-  if (cap) cap.textContent = title;
-  modal.classList.remove('hidden');
-}
-
-function closePhotoLightbox() {
-  const modal = $('lightbox-modal');
-  if (modal) modal.classList.add('hidden');
-}
-
-if ($('lightbox-close-btn')) {
-  $('lightbox-close-btn').onclick = closePhotoLightbox;
-}
-if ($('lightbox-modal')) {
-  $('lightbox-modal').onclick = e => {
-    if (e.target === $('lightbox-modal')) closePhotoLightbox();
-  };
-}
-
 $('snap-btn').onclick = async () => {
   const v = $('video');
   if (!v.videoWidth) return;
@@ -1263,33 +1036,49 @@ $('snap-btn').onclick = async () => {
   playShutterSound();
   if ('vibrate' in navigator) navigator.vibrate([25, 20, 35]);
 
-  // 3. High-Fidelity Capture from Complete Video Frame (100% exact framing match with live preview)
-  const c = document.createElement('canvas');
-  let w = v.videoWidth;
-  let h = v.videoHeight;
-  const MAX_DIM = 3840; // 4K native maximum fidelity without downsampling
-  if (w > MAX_DIM || h > MAX_DIM) {
-    const scale = Math.min(MAX_DIM / w, MAX_DIM / h);
-    w = Math.round(w * scale);
-    h = Math.round(h * scale);
-  }
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d');
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  // 3. High-Resolution Sensor Capture
+  let fullPhotoUrl = null;
 
-  if (currentCameraZoom !== 1.0 && v.style.transform && v.style.transform !== 'none') {
-    ctx.save();
-    ctx.translate(c.width / 2, c.height / 2);
-    ctx.scale(currentCameraZoom, currentCameraZoom);
-    ctx.translate(-c.width / 2, -c.height / 2);
-    ctx.drawImage(v, 0, 0, c.width, c.height);
-    ctx.restore();
-  } else {
-    ctx.drawImage(v, 0, 0, c.width, c.height);
+  if ('ImageCapture' in window && currentVideoTrack && currentFacingMode !== 'user') {
+    try {
+      const capture = new ImageCapture(currentVideoTrack);
+      const blob = await capture.takePhoto();
+      fullPhotoUrl = await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = evt => resolve(evt.target.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (icErr) {
+      // Graceful fallback to high-res canvas draw
+    }
   }
-  const fullPhotoUrl = c.toDataURL('image/jpeg', 0.94);
+
+  if (!fullPhotoUrl) {
+    const c = document.createElement('canvas');
+    let w = v.videoWidth;
+    let h = v.videoHeight;
+    const MAX_DIM = 2560; // 2.5K high quality retina
+    if (w > MAX_DIM || h > MAX_DIM) {
+      const scale = Math.min(MAX_DIM / w, MAX_DIM / h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+
+    if (currentCameraZoom !== 1.0 && v.style.transform && v.style.transform !== 'none') {
+      ctx.save();
+      ctx.translate(c.width / 2, c.height / 2);
+      ctx.scale(currentCameraZoom, currentCameraZoom);
+      ctx.translate(-c.width / 2, -c.height / 2);
+      ctx.drawImage(v, 0, 0, c.width, c.height);
+      ctx.restore();
+    } else {
+      ctx.drawImage(v, 0, 0, c.width, c.height);
+    }
+    fullPhotoUrl = c.toDataURL('image/jpeg', 0.92);
+  }
 
   // 4. Lightweight 256px Thumbnail strictly for on-device CLIP inference
   const thumbC = document.createElement('canvas');
@@ -1305,40 +1094,9 @@ $('snap-btn').onclick = async () => {
 
   pending = { photo: fullPhotoUrl, guesses: [] };
   $('result-img').src = fullPhotoUrl;
-  updateResultMediaAspect();
+  $('guesses').textContent = 'Identifying specimen with on-device AI...';
   $('name-field').value = '';
   show('result', true);
-
-  if ($('result-location-badge')) {
-    $('result-location-badge').textContent = '📍 Acquiring GPS coordinates...';
-  }
-  if ($('result-status-tag')) {
-    $('result-status-tag').textContent = 'Draft Specimen';
-    $('result-status-tag').className = 'result-status-tag';
-  }
-
-  getPosition().then(pos => {
-    if (pos && $('result-location-badge')) {
-      const latStr = `${pos.lat.toFixed(4)}° ${pos.lat >= 0 ? 'N' : 'S'}`;
-      const lonStr = `${pos.lon.toFixed(4)}° ${pos.lon >= 0 ? 'E' : 'W'}`;
-      const accStr = pos.accuracy ? ` (±${Math.round(pos.accuracy)}m)` : '';
-      $('result-location-badge').textContent = `📍 ${latStr}, ${lonStr}${accStr}`;
-    }
-  }).catch(() => {
-    if ($('result-location-badge')) {
-      $('result-location-badge').textContent = '📍 Location saved with timestamp';
-    }
-  });
-
-  // Skeleton shimmer while AI infers
-  $('guesses').innerHTML = `
-    <div class="skeleton-shimmer-row">
-      <div class="skeleton-guess-pill shimmer"></div>
-      <div class="skeleton-guess-pill shimmer"></div>
-      <div class="skeleton-guess-pill shimmer"></div>
-    </div>
-    <p class="identifying-hint">Identifying specimen with on-device AI...</p>
-  `;
 
   await runIdentification(thumbDataUrl);
 };
@@ -1355,10 +1113,6 @@ async function runIdentification(thumbDataUrl) {
         pending.guesses = ranked.filter(r => r.label !== NONE_LABEL).slice(0, 3);
         renderGuesses();
         pickGuess(pending.guesses[0]);
-        if ($('result-status-tag')) {
-          $('result-status-tag').textContent = 'AI Match Found';
-          $('result-status-tag').className = 'result-status-tag is-matched';
-        }
         return;
       }
     } catch (e) {
@@ -1471,15 +1225,11 @@ $('save-btn').onclick = async () => {
   if ('vibrate' in navigator) navigator.vibrate([40, 50, 80]);
   const pos = lastPos || await getPosition();
   const photoToSave = pending.photo;
-  const record = {
+  await putAll('finds', {
     name, type: $('type-field').value, photo: photoToSave, time: Date.now(),
     lat: pos ? pos.lat : null, lon: pos ? pos.lon : null,
     guessed: pending.guesses[0] ? pending.guesses[0].label : null,
-  };
-  if (pending.existingFindId) {
-    record.id = pending.existingFindId;
-  }
-  await putAll('finds', record);
+  });
 
   // Option A: Auto-download high-resolution photo to device storage
   const safeName = name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
@@ -1778,13 +1528,6 @@ function init3DCardPhysics() {
       : 'perspective(1000px) rotateY(0deg)';
   }
 
-  if ($('stamp-action-view-species')) {
-    $('stamp-action-view-species').onclick = e => {
-      e.stopPropagation();
-      openFindInSpeciesPanel(find);
-    };
-  }
-
   // Close handlers
   $('stamp-modal-close').onclick = () => show('stamp-modal', false);
   $('stamp-modal').onclick = e => {
@@ -1792,44 +1535,8 @@ function init3DCardPhysics() {
   };
 }
 
-function openFindInSpeciesPanel(find) {
-  if (!find) return;
-  show('stamp-modal', false);
-  showView('capture');
-  pending = {
-    photo: find.photo,
-    guesses: find.guessed ? [{ label: find.guessed, score: 0.99 }] : [{ label: find.name, score: 1.0 }],
-    existingFindId: find.id
-  };
-  $('result-img').src = find.photo;
-  updateResultMediaAspect();
-  $('name-field').value = find.name || '';
-  $('type-field').value = find.type || 'flower';
-  if ($('result-status-tag')) {
-    $('result-status-tag').textContent = 'Saved Specimen';
-    $('result-status-tag').className = 'result-status-tag is-matched';
-  }
-  if ($('result-location-badge')) {
-    const locDate = getLocationAndDate(find);
-    $('result-location-badge').textContent = `📍 ${locDate.location} · ${locDate.date}`;
-  }
-  const guessBox = $('guesses');
-  if (guessBox) {
-    guessBox.textContent = '';
-    const b = document.createElement('button');
-    b.className = 'guess-pill on';
-    b.innerHTML = `<span>${find.guessed || find.name}</span> <span class="score-badge">Verified</span>`;
-    guessBox.appendChild(b);
-  }
-  show('result', true);
-}
-
 function openDetailModal(find) {
-  if (!find) return;
-  showView('collection');
-  setTimeout(() => {
-    open3DStampCard(find);
-  }, 80);
+  open3DStampCard(find);
 }
 
 // ---------- Feature: Vintage Field Postcard & Herbarium Archive Card ----------
@@ -2331,16 +2038,6 @@ function updateScaleRuler(px) {
   if (labelEl) labelEl.textContent = chosenStep >= 1000 ? `${(chosenStep / 1000).toFixed(0)} km` : `${chosenStep} m`;
 }
 
-function getMapOrigin(finds = cachedFinds) {
-  if (lastPos && lastPos.lat != null) return lastPos;
-  if (track && track.length > 0 && track[0].lat != null) return track[0];
-  if (finds && finds.length > 0) {
-    const f = finds.find(item => item.lat != null && item.lon != null);
-    if (f) return { lat: f.lat, lon: f.lon };
-  }
-  return { lat: 28.6139, lon: 77.2090 };
-}
-
 function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   const cv = $('map');
   if (!cv) return;
@@ -2364,7 +2061,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
 
   const px = 2 * zoom; // pixels per metre
   const cx = cv.width / 2, cy = cv.height / 2;
-  const origin = getMapOrigin(finds);
+  const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
   const toScreen = m => ({ x: cx + panX + m.x * px, y: cy + panY - m.y * px });
   const playerScreenPos = toScreen({ x: 0, y: 0 });
 
@@ -2590,7 +2287,7 @@ async function renderMapAndStats() {
   const finds = await getAll('finds');
   cachedFinds = finds;
   cachedCells = new Set();
-  const origin = getMapOrigin(finds);
+  const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
 
   track.forEach(pt => {
     const m = project(pt, origin);
@@ -2866,7 +2563,7 @@ function initMapInteractions() {
       panX = 0;
       panY = 0;
       recenterBtn.classList.remove('recenter-active');
-      const origin = getMapOrigin(cachedFinds);
+      const origin = lastPos || (track[0]) || { lat: 0, lon: 0 };
       if (mapInstance && origin.lat !== 0) {
         mapInstance.panTo([origin.lon, origin.lat], { duration: 300 });
       }

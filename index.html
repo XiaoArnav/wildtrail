@@ -161,12 +161,7 @@
             <span class="badge-open-model">Open CLIP</span>
           </div>
           <div class="result-media">
-            <img id="result-img" class="species-preview-image" alt="Captured photo" title="Tap to view full resolution photo">
-            <div class="result-zoom-hint">🔍 Tap photo to enlarge</div>
-          </div>
-          <div class="result-telemetry-row">
-            <span id="result-location-badge" class="result-location-badge">📍 Acquiring GPS coordinates...</span>
-            <span id="result-status-tag" class="result-status-tag">Draft Specimen</span>
+            <img id="result-img" alt="Captured photo">
           </div>
           <div class="guesses-section">
             <span class="field-label">AI Guesses (tap to choose):</span>
@@ -202,7 +197,7 @@
   <!-- Collection -->
   <section id="view-collection" class="view">
     <div class="collection-header">
-      <h2>Field Guide &amp; Journal</h2>
+      <h2>Field Journal</h2>
       <div id="collection-stats" class="collection-count-badge">0 finds</div>
     </div>
     <div class="tabs" id="filter-tabs">
@@ -224,7 +219,6 @@
     <div id="empty-msg" class="empty-state hidden">
       <div class="empty-icon">🌿</div>
       <p>No finds in this category yet.<br>Head outside with the Scanner to log your first discovery!</p>
-      <button type="button" id="empty-scan-btn" class="primary" style="margin-top:14px; max-width:240px; margin-left:auto; margin-right:auto;">Open Wildlife Scanner 📷</button>
     </div>
   </section>
 
@@ -448,7 +442,6 @@
 
               <div class="postcard-card-actions">
                 <button id="stamp-action-save-photo" class="stamp-act-btn photo-btn">📱 Save Photo</button>
-                <button id="stamp-action-view-species" class="stamp-act-btn secondary">🔍 Species Panel</button>
                 <button id="stamp-action-postcard" class="stamp-act-btn primary">📯 Export Postcard</button>
                 <button id="stamp-action-delete" class="stamp-act-btn danger">🗑️ Delete</button>
               </div>
@@ -516,13 +509,6 @@
       <button id="postcard-share-btn" class="primary full-width">📲 Share Postcard (Stories / WhatsApp)</button>
       <button id="postcard-download-btn" class="glass-btn full-width">💾 Save High-Res Card (.PNG)</button>
     </div>
-  </div>
-<!-- Fullscreen Photo Lightbox Modal -->
-<div id="lightbox-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Photo Preview">
-  <button id="lightbox-close-btn" class="modal-close lightbox-close" aria-label="Close photo preview">&times;</button>
-  <div class="lightbox-stage">
-    <img id="lightbox-img" src="" alt="High resolution wildlife preview">
-    <div id="lightbox-caption" class="lightbox-caption"></div>
   </div>
 </div>
 
