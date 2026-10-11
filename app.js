@@ -275,6 +275,7 @@ function playDiscoveryChime() {
 // ---------- Camera (iPhone High-Resolution + Fluid Zoom Controls) ----------
 let stream = null;
 let currentVideoTrack = null;
+let currentFacingMode = 'environment'; // 'environment' (back) or 'user' (selfie)
 let isTorchOn = false;
 let currentCameraZoom = 1.0;
 let focusReticleTimer = null;
@@ -290,16 +291,27 @@ let zoomStartLevel = 1.0;
 let zoomTotalMoved = 0;
 let lastHapticStep = 1.0;
 
+function applyVideoTransform() {
+  const v = $('video');
+  if (!v) return;
+  const isFront = currentFacingMode === 'user';
+  const scaleX = isFront ? -currentCameraZoom : currentCameraZoom;
+  const scaleY = currentCameraZoom;
+
+  if (currentCameraZoom === 1.0 && !isFront) {
+    v.style.transform = 'none';
+  } else {
+    v.style.transform = `scale(${scaleX}, ${scaleY})`;
+    v.style.transformOrigin = 'center center';
+  }
+}
+
 function setCameraZoom(z) {
   // Always strictly clamped between 1.0x and 5.0x so video ALWAYS fills viewfinder (zero black bars!)
   const clamped = Math.min(5.0, Math.max(1.0, Math.round(z * 10) / 10));
   currentCameraZoom = clamped;
 
-  const v = $('video');
-  if (v) {
-    v.style.transform = clamped === 1.0 ? 'none' : `scale(${clamped})`;
-    v.style.transformOrigin = 'center center';
-  }
+  applyVideoTransform();
 
   if ($('zoom-badge-val')) {
     $('zoom-badge-val').textContent = clamped.toFixed(1) + 'x';
@@ -488,7 +500,15 @@ function initCameraControls() {
     });
   }
 
-  // 7. Hardware Torch / Flashlight Toggle
+  // 7. Camera Flip / Switch (Front Selfie <-> Back Environment)
+  if ($('flip-cam-btn')) {
+    $('flip-cam-btn').onclick = async e => {
+      e.stopPropagation();
+      flipCamera();
+    };
+  }
+
+  // 8. Hardware Torch / Flashlight Toggle
   if ($('torch-btn')) {
     $('torch-btn').onclick = async e => {
       e.stopPropagation();
@@ -504,7 +524,7 @@ function initCameraControls() {
     };
   }
 
-  // 8. Native 48MP iPhone Camera File Picker Ingestion
+  // 9. Native 48MP iPhone Camera File Picker Ingestion
   if ($('native-cam-input')) {
     $('native-cam-input').onchange = async e => {
       const file = e.target.files?.[0];
@@ -557,14 +577,45 @@ function initCameraControls() {
   }
 }
 
-$('cam-btn').onclick = async () => {
-  if (stream) { stopCamera(); return; }
+async function flipCamera() {
+  warmUpAudio();
+  if ('vibrate' in navigator) navigator.vibrate([20, 30]);
+
+  const flipBtn = $('flip-cam-btn');
+  if (flipBtn) {
+    flipBtn.classList.add('flip-rotating');
+    setTimeout(() => flipBtn.classList.remove('flip-rotating'), 400);
+  }
+
+  const v = $('video');
+  if (v) {
+    v.classList.add('camera-flipping');
+    setTimeout(() => v.classList.remove('camera-flipping'), 380);
+  }
+
+  const nextMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+  currentFacingMode = nextMode;
+
+  if (stream) {
+    await startCamera(nextMode);
+  } else {
+    $('lens-status').textContent = nextMode === 'user' ? '○ Selfie Lens' : '○ Back Lens';
+  }
+}
+
+async function startCamera(facingMode = currentFacingMode) {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  currentFacingMode = facingMode;
+
   try {
     try {
-      // 1. High-resolution constraints (4K / 1080p target)
+      // 1. High-resolution constraints (4K / 1080p target) with active facingMode
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: 'environment' },
+          facingMode: { ideal: currentFacingMode },
           width: { ideal: 3840, min: 1280 },
           height: { ideal: 2160, min: 720 }
         },
@@ -572,13 +623,13 @@ $('cam-btn').onclick = async () => {
       });
     } catch (hiResErr) {
       try {
-        // Fallback for standard mobile environment camera
+        // Fallback for standard mobile camera
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+          video: { facingMode: { ideal: currentFacingMode } },
           audio: false
         });
       } catch (camErr) {
-        // Fallback for desktop/laptop webcams
+        // Fallback for webcams without facingMode constraint
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       }
     }
@@ -588,26 +639,33 @@ $('cam-btn').onclick = async () => {
     show('cam-msg', false);
     $('snap-btn').disabled = false;
     $('cam-btn-text').textContent = 'Stop camera';
-    $('lens-status').textContent = '● Live Lens';
+    $('lens-status').textContent = currentFacingMode === 'user' ? '● Selfie Lens' : '● Live Lens';
     $('lens-status').classList.add('active');
 
     const [vTrack] = stream.getVideoTracks();
     currentVideoTrack = vTrack;
     isTorchOn = false;
+    applyVideoTransform();
+
     if ($('torch-btn')) {
       $('torch-btn').classList.remove('active');
       const caps = vTrack?.getCapabilities ? vTrack.getCapabilities() : {};
-      if (caps && caps.torch) {
+      if (caps && caps.torch && currentFacingMode === 'environment') {
         $('torch-btn').classList.remove('hidden');
       } else {
         $('torch-btn').classList.add('hidden');
       }
     }
 
-    warmModel(); // start loading model in background while user points lens
+    warmModel();
   } catch (e) {
     $('cam-msg').textContent = 'Camera unavailable: ' + (e.message || e.name);
   }
+}
+
+$('cam-btn').onclick = async () => {
+  if (stream) { stopCamera(); return; }
+  await startCamera(currentFacingMode);
 };
 
 function stopCamera() {
@@ -621,7 +679,7 @@ function stopCamera() {
   $('cam-msg').textContent = 'Camera is off';
   $('snap-btn').disabled = true;
   $('cam-btn-text').textContent = 'Start camera';
-  $('lens-status').textContent = '○ Standby';
+  $('lens-status').textContent = currentFacingMode === 'user' ? '○ Selfie Lens' : '○ Standby';
   $('lens-status').classList.remove('active');
   if ($('torch-btn')) {
     $('torch-btn').classList.add('hidden');
@@ -675,7 +733,7 @@ $('snap-btn').onclick = async () => {
   // 3. High-Resolution Sensor Capture
   let fullPhotoUrl = null;
 
-  if ('ImageCapture' in window && currentVideoTrack) {
+  if ('ImageCapture' in window && currentVideoTrack && currentFacingMode !== 'user') {
     try {
       const capture = new ImageCapture(currentVideoTrack);
       const blob = await capture.takePhoto();
@@ -702,10 +760,14 @@ $('snap-btn').onclick = async () => {
     c.width = w;
     c.height = h;
     const ctx = c.getContext('2d');
-    if (currentCameraZoom !== 1 && v.style.transform && v.style.transform !== 'none') {
+    const isFront = currentFacingMode === 'user';
+    const scaleX = isFront ? -currentCameraZoom : currentCameraZoom;
+    const scaleY = currentCameraZoom;
+
+    if ((currentCameraZoom !== 1 || isFront) && v.style.transform && v.style.transform !== 'none') {
       ctx.save();
       ctx.translate(c.width / 2, c.height / 2);
-      ctx.scale(currentCameraZoom, currentCameraZoom);
+      ctx.scale(scaleX, scaleY);
       ctx.translate(-c.width / 2, -c.height / 2);
       ctx.drawImage(v, 0, 0, c.width, c.height);
       ctx.restore();
@@ -723,7 +785,16 @@ $('snap-btn').onclick = async () => {
   const minDim = Math.min(v.videoWidth || 256, v.videoHeight || 256);
   const sx = ((v.videoWidth || 256) - minDim) / 2;
   const sy = ((v.videoHeight || 256) - minDim) / 2;
-  thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
+
+  if (currentFacingMode === 'user') {
+    thumbCtx.save();
+    thumbCtx.translate(256, 0);
+    thumbCtx.scale(-1, 1);
+    thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
+    thumbCtx.restore();
+  } else {
+    thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
+  }
   const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.85);
 
   pending = { photo: fullPhotoUrl, guesses: [] };

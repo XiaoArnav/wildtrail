@@ -470,6 +470,21 @@ video {
   box-shadow: 0 0 12px rgba(255, 214, 10, 0.7);
 }
 
+.cam-icon-btn.flip-rotating {
+  transform: rotate(180deg) scale(1.15);
+  transition: transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.camera-flipping {
+  animation: cameraViewFlip 0.35s ease-in-out;
+}
+
+@keyframes cameraViewFlip {
+  0% { transform: scale(1) rotateY(0deg); opacity: 1; }
+  50% { transform: scale(0.92) rotateY(90deg); opacity: 0.3; }
+  100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+
 .corner {
   position: absolute;
   width: 24px;
