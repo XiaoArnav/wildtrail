@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#fbfbf9">
+<meta name="theme-color" content="#070e0a">
 <title>WildTrail</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
@@ -161,12 +161,7 @@
             <span class="badge-open-model">Open CLIP</span>
           </div>
           <div class="result-media">
-            <img id="result-img" class="species-preview-image" alt="Captured photo" title="Tap to view full resolution photo">
-            <div class="result-zoom-hint">🔍 Tap photo to enlarge</div>
-          </div>
-          <div class="result-telemetry-row">
-            <span id="result-location-badge" class="result-location-badge">📍 Acquiring GPS coordinates...</span>
-            <span id="result-status-tag" class="result-status-tag">Draft Specimen</span>
+            <img id="result-img" alt="Captured photo">
           </div>
           <div class="guesses-section">
             <span class="field-label">AI Guesses (tap to choose):</span>
@@ -447,7 +442,6 @@
 
               <div class="postcard-card-actions">
                 <button id="stamp-action-save-photo" class="stamp-act-btn photo-btn">📱 Save Photo</button>
-                <button id="stamp-action-view-species" class="stamp-act-btn secondary">🔍 Species Panel</button>
                 <button id="stamp-action-postcard" class="stamp-act-btn primary">📯 Export Postcard</button>
                 <button id="stamp-action-delete" class="stamp-act-btn danger">🗑️ Delete</button>
               </div>
@@ -515,15 +509,6 @@
       <button id="postcard-share-btn" class="primary full-width">📲 Share Postcard (Stories / WhatsApp)</button>
       <button id="postcard-download-btn" class="glass-btn full-width">💾 Save High-Res Card (.PNG)</button>
     </div>
-  </div>
-</div>
-
-<!-- Fullscreen Photo Lightbox Modal -->
-<div id="lightbox-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Photo Preview">
-  <button id="lightbox-close-btn" class="modal-close lightbox-close" aria-label="Close photo preview">&times;</button>
-  <div class="lightbox-stage">
-    <img id="lightbox-img" src="" alt="High resolution wildlife preview">
-    <div id="lightbox-caption" class="lightbox-caption"></div>
   </div>
 </div>
 
