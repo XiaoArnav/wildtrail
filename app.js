@@ -919,7 +919,123 @@ function initMapInteractions() {
   if (!cv || cv._interactionsInit) return;
   cv._interactionsInit = true;
 
+  // Prevent iOS Safari page-level gesture zoom on map
+  cv.addEventListener('gesturestart', e => e.preventDefault());
+  cv.addEventListener('gesturechange', e => e.preventDefault());
+  cv.addEventListener('gestureend', e => e.preventDefault());
+
+  // ---------- 1. Multi-Touch Pinch-to-Zoom & Touch Panning (Fingers) ----------
+  let touchStartDist = 0;
+  let touchStartZoom = 1;
+  let touchStartPos = { x: 0, y: 0 };
+  let touchStartPan = { x: 0, y: 0 };
+  let touchMoved = false;
+  let isPinching = false;
+
+  cv.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      // Two fingers: initiate pinch-to-zoom
+      e.preventDefault();
+      isPinching = true;
+      touchMoved = true;
+      touchStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchStartZoom = zoom;
+    } else if (e.touches.length === 1 && !isPinching) {
+      // One finger: initiate panning
+      touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      touchStartPan = { x: panX, y: panY };
+      touchMoved = false;
+    }
+  }, { passive: false });
+
+  cv.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      // Two fingers: dynamically zoom in/out
+      e.preventDefault();
+      const currentDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (touchStartDist > 10 && currentDist > 10) {
+        const scale = currentDist / touchStartDist;
+        const newZoom = Math.min(8, Math.max(0.15, touchStartZoom * scale));
+        const oldZoom = zoom;
+        zoom = newZoom;
+
+        if (mapInstance) {
+          const zoomDiff = Math.log2(zoom / oldZoom);
+          if (Math.abs(zoomDiff) > 0.01) {
+            mapInstance.setZoom(mapInstance.getZoom() + zoomDiff);
+          }
+        }
+        drawMapCanvas(cachedFinds, cachedCells);
+      }
+    } else if (e.touches.length === 1 && !isPinching) {
+      // One finger: drag map
+      const dx = e.touches[0].clientX - touchStartPos.x;
+      const dy = e.touches[0].clientY - touchStartPos.y;
+      if (Math.hypot(dx, dy) > 6) {
+        e.preventDefault();
+        touchMoved = true;
+        panX = touchStartPan.x + dx;
+        panY = touchStartPan.y + dy;
+
+        if (mapInstance) {
+          mapInstance.panBy([-dx * 0.1, -dy * 0.1], { animate: false });
+        }
+
+        if (panX !== 0 || panY !== 0) {
+          $('recenter-btn')?.classList.add('recenter-active');
+        }
+        drawMapCanvas(cachedFinds, cachedCells);
+      }
+    }
+  }, { passive: false });
+
+  cv.addEventListener('touchend', e => {
+    if (e.touches.length < 2) {
+      isPinching = false;
+    }
+
+    // Single tap hit-testing on pins if finger didn't drag
+    if (e.touches.length === 0) {
+      if (!touchMoved) {
+        const rect = cv.getBoundingClientRect();
+        const touchPt = e.changedTouches[0] || touchStartPos;
+        const clickX = touchPt.clientX - rect.left;
+        const clickY = touchPt.clientY - rect.top;
+
+        let hitPin = null;
+        for (const p of renderedPins) {
+          if (Math.hypot(clickX - p.x, clickY - p.y) <= p.r + 10) {
+            hitPin = p.find;
+            break;
+          }
+        }
+
+        if (hitPin) {
+          activePopupFind = hitPin;
+          $('popup-img').src = hitPin.photo || '';
+          $('popup-name').textContent = hitPin.name;
+          $('popup-badge').textContent = `${ICONS[hitPin.type] || '🌿'} ${hitPin.type.toUpperCase()}`;
+          $('popup-date').textContent = new Date(hitPin.time).toLocaleDateString([], {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+          });
+          show('map-pin-popup', true);
+        } else {
+          show('map-pin-popup', false);
+          activePopupFind = null;
+        }
+      }
+    }
+  });
+
+  // ---------- 2. Mouse Dragging & Pin Selection (Desktop) ----------
   cv.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') return; // Handled by touch events above
     isDragging = true;
     dragMoved = false;
     dragDistance = 0;
@@ -928,7 +1044,7 @@ function initMapInteractions() {
   });
 
   cv.addEventListener('pointermove', e => {
-    if (!isDragging) return;
+    if (e.pointerType === 'touch' || !isDragging) return;
     const dx = e.clientX - dragStart.x;
     const dy = e.clientY - dragStart.y;
     dragDistance += Math.hypot(dx, dy);
@@ -951,7 +1067,7 @@ function initMapInteractions() {
   });
 
   const onPointerEnd = e => {
-    if (!isDragging) return;
+    if (e.pointerType === 'touch' || !isDragging) return;
     isDragging = false;
     cv.classList.remove('is-dragging');
     try { cv.releasePointerCapture(e.pointerId); } catch (_) {}
@@ -987,6 +1103,20 @@ function initMapInteractions() {
 
   cv.addEventListener('pointerup', onPointerEnd);
   cv.addEventListener('pointercancel', onPointerEnd);
+
+  // ---------- 3. Trackpad Pinch-to-Zoom & Mouse Wheel Zoom ----------
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    // Mac trackpad pinch emits ctrlKey: true; standard mouse wheel emits deltaY
+    const factor = e.ctrlKey ? Math.exp(-e.deltaY * 0.015) : (e.deltaY < 0 ? 1.15 : 0.87);
+    const oldZoom = zoom;
+    zoom = Math.min(8, Math.max(0.15, zoom * factor));
+    if (mapInstance) {
+      const zoomDelta = Math.log2(zoom / oldZoom);
+      mapInstance.setZoom(mapInstance.getZoom() + zoomDelta);
+    }
+    drawMapCanvas(cachedFinds, cachedCells);
+  }, { passive: false });
 
   // Recenter button
   const recenterBtn = $('recenter-btn');

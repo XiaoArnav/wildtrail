@@ -865,6 +865,9 @@ video {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   margin-bottom: 14px;
   aspect-ratio: 1;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .map-wrapper:fullscreen,
@@ -899,6 +902,8 @@ canvas#map {
   z-index: 2;
   touch-action: none;
   cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 canvas#map.is-dragging {
