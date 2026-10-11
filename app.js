@@ -137,105 +137,10 @@ $('start-btn').onclick = async () => {
   loadTrack();
 };
 
-// ---------- Retro Field Audio Engine (HTML5 PCM WAV + Web Audio API) ----------
+// ---------- Vintage Mechanical Field Audio Engine ----------
 let audioCtx = null;
 let shutterAudio = null;
-
-function createShutterWavUrl() {
-  // Generates an authentic vintage 35mm mechanical SLR camera shutter sound (Ka-chunk!)
-  // Featuring mirror box body resonance, escapement gear transit, and focal-plane curtain rebound
-  const sampleRate = 32000;
-  const duration = 0.28;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = new ArrayBuffer(44 + numSamples * 2);
-  const view = new DataView(buffer);
-  const writeStr = (offset, s) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)); };
-
-  writeStr(0, 'RIFF');
-  view.setUint32(4, 36 + numSamples * 2, true);
-  writeStr(8, 'WAVEfmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM format
-  view.setUint16(22, 1, true); // Mono channel
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true); // 16-bit
-  writeStr(36, 'data');
-  view.setUint32(40, numSamples * 2, true);
-
-  const raw = new Float32Array(numSamples);
-
-  const addImpulse = (startT, durT, f1, f2, amp, noiseRatio, decayT) => {
-    const startIdx = Math.floor(startT * sampleRate);
-    const durIdx = Math.floor(durT * sampleRate);
-    for (let i = 0; i < durIdx; i++) {
-      const idx = startIdx + i;
-      if (idx >= numSamples) break;
-      const t = i / sampleRate;
-      const env = Math.exp(-i / (sampleRate * decayT));
-      const tone = Math.sin(2 * Math.PI * f1 * t) * 0.6 + Math.sin(2 * Math.PI * f2 * t) * 0.4;
-      const noise = (Math.random() * 2 - 1);
-      const sample = (tone * (1 - noiseRatio) + noise * noiseRatio) * env * amp;
-      raw[idx] += sample;
-    }
-  };
-
-  // 1. Mechanical Shutter Button Release Latch (t = 2ms)
-  addImpulse(0.002, 0.035, 2200, 3400, 0.75, 0.65, 0.005);
-
-  // 2. Heavy 35mm Mirror Box Slap (The deep "Ka-" at 16ms)
-  addImpulse(0.016, 0.085, 130, 240, 1.0, 0.3, 0.026);
-
-  // 3. Focal-Plane Cloth Curtain Transit & Escapement Gears (38ms - 95ms)
-  [0.038, 0.050, 0.063, 0.076, 0.090].forEach(gt => {
-    addImpulse(gt, 0.018, 1600, 2600, 0.35, 0.8, 0.004);
-  });
-
-  // 4. Secondary Curtain & Mirror Rebound (The heavy "-CHUNK!" at 112ms)
-  addImpulse(0.112, 0.095, 175, 420, 0.95, 0.4, 0.024);
-  addImpulse(0.122, 0.045, 1100, 2100, 0.7, 0.6, 0.009);
-
-  // 5. Final mechanical spring latch settle (158ms)
-  addImpulse(0.158, 0.035, 1500, 2300, 0.4, 0.5, 0.007);
-
-  // Normalize and convert to 16-bit PCM
-  let maxAmp = 0.001;
-  for (let i = 0; i < numSamples; i++) {
-    const a = Math.abs(raw[i]);
-    if (a > maxAmp) maxAmp = a;
-  }
-  const scale = 0.94 / maxAmp;
-  for (let i = 0; i < numSamples; i++) {
-    const clamped = Math.max(-1, Math.min(1, raw[i] * scale));
-    const s16 = Math.max(-32768, Math.min(32767, Math.floor(clamped * 32767)));
-    view.setInt16(44 + i * 2, s16, true);
-  }
-
-  const blob = new Blob([buffer], { type: 'audio/wav' });
-  return URL.createObjectURL(blob);
-}
-
-function warmUpAudio() {
-  if (!shutterAudio) {
-    try {
-      shutterAudio = new Audio(createShutterWavUrl());
-      shutterAudio.volume = 1.0;
-      shutterAudio.preload = 'auto';
-    } catch (_) {}
-  }
-  if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (AudioContextClass) audioCtx = new AudioContextClass();
-  }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
-  }
-}
-
-// Warm up audio on first user touch anywhere to bypass mobile browser silent policies
-window.addEventListener('pointerdown', warmUpAudio, { once: true });
-window.addEventListener('touchstart', warmUpAudio, { once: true });
+let shutterAudioBuffer = null;
 
 function getAudioContext() {
   if (!audioCtx) {
@@ -248,39 +153,81 @@ function getAudioContext() {
   return audioCtx;
 }
 
+async function loadShutterAudioBuffer() {
+  if (shutterAudioBuffer) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const res = await fetch('shutter.wav');
+    if (!res.ok) return;
+    const arrayBuffer = await res.arrayBuffer();
+    shutterAudioBuffer = await ctx.decodeAudioData(arrayBuffer);
+  } catch (_) {}
+}
+
+function warmUpAudio() {
+  if (!shutterAudio) {
+    shutterAudio = $('shutter-audio') || new Audio('shutter.wav');
+    try {
+      shutterAudio.volume = 1.0;
+      shutterAudio.preload = 'auto';
+      shutterAudio.load();
+    } catch (_) {}
+  }
+  const ctx = getAudioContext();
+  if (ctx) {
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    if (!shutterAudioBuffer) {
+      loadShutterAudioBuffer().catch(() => {});
+    }
+  }
+}
+
+// Warm up audio on first user touch anywhere to bypass mobile browser silent policies
+window.addEventListener('pointerdown', warmUpAudio, { once: true });
+window.addEventListener('touchstart', warmUpAudio, { once: true });
+window.addEventListener('click', warmUpAudio, { once: true });
+
+// Preload audio buffer in background
+setTimeout(() => {
+  loadShutterAudioBuffer().catch(() => {});
+}, 300);
+
 function playShutterSound() {
   warmUpAudio();
-  // 1. Play dedicated HTML5 audio element for instant mechanical click
+
+  let played = false;
+
+  // 1. Web Audio API (instant 0-latency playback with AudioBufferSourceNode)
   try {
-    if (shutterAudio) {
-      shutterAudio.currentTime = 0;
-      const p = shutterAudio.play();
-      if (p && p.catch) p.catch(() => {});
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'running' && shutterAudioBuffer) {
+      const source = ctx.createBufferSource();
+      source.buffer = shutterAudioBuffer;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(1.0, ctx.currentTime);
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(0);
+      played = true;
     }
   } catch (_) {}
 
-  // 2. Play Web Audio synth as redundant backup
-  try {
-    const ctx = getAudioContext();
-    if (ctx && ctx.state === 'running') {
-      const t = ctx.currentTime;
-      const createClick = (startTime, freq, duration, gainVal) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, startTime);
-        gain.gain.setValueAtTime(gainVal, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + duration + 0.005);
-      };
-      createClick(t, 2200, 0.025, 0.4);       // Release click
-      createClick(t + 0.015, 160, 0.05, 0.5);  // Mirror slap body
-      createClick(t + 0.11, 190, 0.06, 0.45);  // Curtain rebound thud
-    }
-  } catch (_) {}
+  // 2. HTML5 Audio element fallback (instant mechanical click)
+  if (!played) {
+    try {
+      if (!shutterAudio) {
+        shutterAudio = $('shutter-audio') || new Audio('shutter.wav');
+      }
+      if (shutterAudio) {
+        shutterAudio.currentTime = 0;
+        const p = shutterAudio.play();
+        if (p && p.catch) p.catch(() => {});
+      }
+    } catch (_) {}
+  }
 }
 
 function playDiscoveryChime() {
