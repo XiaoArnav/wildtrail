@@ -2663,8 +2663,8 @@ async function loadMapLibraries() {
       import('https://cdn.jsdelivr.net/npm/pmtiles@3.0.7/dist/pmtiles.js'),
       import('https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js')
     ]);
-    pmtilesLib = pm;
-    maplibreGL = ml.default || ml;
+    pmtilesLib = window.pmtiles || pm.default || pm;
+    maplibreGL = window.maplibregl || ml.default || ml;
     return { maplibregl: maplibreGL, pmtiles: pmtilesLib };
   } catch (err) {
     console.warn('MapLibre/PMTiles failed to load offline assets, keeping canvas fallback:', err);
