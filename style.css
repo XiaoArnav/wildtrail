@@ -329,6 +329,8 @@ button.danger-btn {
   aspect-ratio: 4 / 5;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   border: 1px solid var(--card-border);
+  touch-action: manipulation;
+  user-select: none;
 }
 
 video {
@@ -336,6 +338,7 @@ video {
   height: 100%;
   object-fit: cover;
   display: block;
+  transform-origin: center center;
 }
 
 #cam-msg {
@@ -350,18 +353,118 @@ video {
   z-index: 1;
 }
 
+/* iPhone Shutter Flash Screen Effect */
+.shutter-flash {
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  transition: opacity 0.08s ease-out;
+}
+
+.shutter-flash.flash-active {
+  opacity: 0.9;
+  transition: none;
+}
+
+/* iPhone Yellow Tap-to-Focus Reticle */
+.focus-reticle {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
+  z-index: 15;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: focusPulse 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.4s ease;
+}
+
+.focus-reticle.fade-out {
+  opacity: 0;
+}
+
+.focus-box {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #ffd60a;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 214, 10, 0.6);
+}
+
+.focus-sun {
+  position: absolute;
+  right: -24px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px rgba(255, 214, 10, 0.8));
+}
+
+@keyframes focusPulse {
+  0% { transform: translate(-50%, -50%) scale(1.4); opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
 /* Viewfinder Overlay */
 .viewfinder-overlay {
   position: absolute;
-  inset: 16px;
+  inset: 12px;
   pointer-events: none;
-  z-index: 2;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* iPhone Viewfinder Top Toolbar */
+.viewfinder-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  pointer-events: auto;
+  z-index: 6;
+}
+
+.cam-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.15s, transform 0.1s, border-color 0.15s;
+  padding: 0;
+}
+
+.cam-icon-btn:active {
+  transform: scale(0.92);
+}
+
+.cam-icon-btn.active {
+  background: #ffd60a;
+  color: #000;
+  border-color: #ffd60a;
+  box-shadow: 0 0 12px rgba(255, 214, 10, 0.7);
 }
 
 .corner {
   position: absolute;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-color: rgba(245, 158, 11, 0.85);
   border-style: solid;
   border-width: 0;
@@ -374,31 +477,29 @@ video {
   100% { opacity: 1; transform: scale(1.03); filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.6)); }
 }
 
-.corner.tl { top: 0; left: 0; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 6px; }
-.corner.tr { top: 0; right: 0; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 6px; }
-.corner.bl { bottom: 0; left: 0; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 6px; }
-.corner.br { bottom: 0; right: 0; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 6px; }
+.corner.tl { top: 48px; left: 0; border-top-width: 2.5px; border-left-width: 2.5px; border-top-left-radius: 5px; }
+.corner.tr { top: 48px; right: 0; border-top-width: 2.5px; border-right-width: 2.5px; border-top-right-radius: 5px; }
+.corner.bl { bottom: 54px; left: 0; border-bottom-width: 2.5px; border-left-width: 2.5px; border-bottom-left-radius: 5px; }
+.corner.br { bottom: 54px; right: 0; border-bottom-width: 2.5px; border-right-width: 2.5px; border-bottom-right-radius: 5px; }
 
 .lens-status {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--muted);
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
   padding: 4px 10px;
   border-radius: 999px;
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .lens-status.active {
-  color: var(--amber-light);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+  color: #ffd60a;
+  border: 1px solid rgba(255, 214, 10, 0.4);
+  box-shadow: 0 0 12px rgba(255, 214, 10, 0.25);
   animation: lensGlow 2.5s ease-in-out infinite alternate;
 }
 
@@ -407,51 +508,133 @@ video {
   100% { opacity: 1; }
 }
 
+/* iPhone Lens Zoom Switcher (.5, 1x, 2x) */
+.lens-zoom-switcher {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 3px 6px;
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: auto;
+  align-self: center;
+  margin-bottom: 4px;
+}
+
+.zoom-pill {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.zoom-pill:active {
+  transform: scale(0.9);
+}
+
+.zoom-pill.on {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffd60a;
+  font-size: 13px;
+  box-shadow: 0 0 8px rgba(255, 214, 10, 0.4);
+  transform: scale(1.08);
+}
+
 /* Controls Bar */
 .controls-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin: 16px 0 12px;
-  gap: 14px;
+  gap: 12px;
 }
 
 .controls-bar > button.glass-btn {
   flex: 1;
-  height: 52px;
+  height: 54px;
 }
 
-/* Shutter Button */
-.shutter-btn {
-  width: 66px;
-  height: 66px;
+/* Authentic iPhone Shutter Button */
+.shutter-btn.iphone-shutter {
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: transparent;
-  border: 4px solid var(--amber-light);
+  border: 4px solid #ffffff;
   padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 20px var(--amber-glow);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.2);
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.shutter-inner {
+.shutter-btn.iphone-shutter:active:not(:disabled) {
+  transform: scale(0.93);
+}
+
+.shutter-btn.iphone-shutter .shutter-inner {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  transition: transform 0.1s ease;
+  background: #ffffff;
+  transition: transform 0.12s ease;
 }
 
-.shutter-btn:not(:disabled):hover .shutter-inner {
-  transform: scale(0.92);
+.shutter-btn.iphone-shutter:active:not(:disabled) .shutter-inner {
+  transform: scale(0.88);
 }
 
 .shutter-btn:disabled {
   opacity: 0.35;
   box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Native 48MP Camera Shortcut */
+.pro-cam-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 14px;
+  height: 54px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--amber-light);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  user-select: none;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pro-cam-btn:active {
+  background: rgba(245, 158, 11, 0.25);
+  transform: scale(0.96);
 }
 
 /* Status Card */
@@ -2371,3 +2554,32 @@ canvas#postcard-canvas {
   background: rgba(255, 255, 255, 0.2);
   transform: scale(1.1);
 }
+
+/* Mobile Responsiveness & Touch Optimizations */
+@media (max-width: 480px) {
+  .stamp-modal-stage {
+    padding: 8px;
+  }
+  .stamp-3d-card {
+    width: min(88vw, 320px);
+    height: min(120vw, 440px);
+  }
+  .controls-bar {
+    gap: 8px;
+  }
+  .controls-bar > button.glass-btn {
+    height: 50px;
+    font-size: 13px;
+    padding: 0 10px;
+  }
+  .shutter-btn.iphone-shutter {
+    width: 66px;
+    height: 66px;
+  }
+  .pro-cam-btn {
+    height: 50px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+}
+

@@ -84,12 +84,35 @@
       <div class="camera-col">
         <div class="camera">
           <video id="video" playsinline muted></video>
+          
+          <!-- iPhone Shutter Flash Screen Effect -->
+          <div id="shutter-flash" class="shutter-flash"></div>
+
+          <!-- iPhone Yellow Tap-to-Focus Reticle -->
+          <div id="focus-reticle" class="focus-reticle hidden">
+            <div class="focus-box"></div>
+            <span class="focus-sun">☀️</span>
+          </div>
+
           <div class="viewfinder-overlay">
+            <div class="viewfinder-top-bar">
+              <button id="torch-btn" class="cam-icon-btn hidden" title="Toggle flashlight">⚡</button>
+              <div id="lens-status" class="lens-status">○ Standby</div>
+              <label for="native-cam-input" class="cam-icon-btn" title="Open iPhone 48MP System Camera">📸</label>
+              <input type="file" id="native-cam-input" accept="image/*" capture="environment" style="display:none">
+            </div>
+
             <div class="corner tl"></div>
             <div class="corner tr"></div>
             <div class="corner bl"></div>
             <div class="corner br"></div>
-            <div id="lens-status" class="lens-status">○ Standby</div>
+            
+            <!-- iPhone Lens Zoom Switcher (0.5x, 1x, 2x) -->
+            <div class="lens-zoom-switcher" id="lens-zoom-switcher">
+              <button class="zoom-pill" data-z="0.5">.5</button>
+              <button class="zoom-pill on" data-z="1">1x</button>
+              <button class="zoom-pill" data-z="2">2x</button>
+            </div>
           </div>
           <div id="cam-msg">Camera is off</div>
         </div>
@@ -99,9 +122,18 @@
             <span class="btn-icon">📷</span>
             <span id="cam-btn-text">Start camera</span>
           </button>
-          <button id="snap-btn" class="shutter-btn" disabled title="Capture find">
+          
+          <!-- Authentic iPhone Shutter Button -->
+          <button id="snap-btn" class="shutter-btn iphone-shutter" disabled title="Capture find">
+            <span class="shutter-ring"></span>
             <span class="shutter-inner"></span>
           </button>
+
+          <!-- Native 48MP Camera Shortcut -->
+          <label for="native-cam-input" class="glass-btn pro-cam-btn" title="Take 48MP photo with native iOS/Android camera">
+            <span class="btn-icon">✨</span>
+            <span>48MP</span>
+          </label>
         </div>
       </div>
 

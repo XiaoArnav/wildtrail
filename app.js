@@ -122,6 +122,7 @@ async function updateTrainerChip() {
 async function boot() {
   initMapInteractions();
   init3DCardPhysics();
+  initCameraControls();
   const name = await metaGet('name');
   if (!name) { showView('welcome'); return; }
   await updateTrainerChip();
@@ -136,17 +137,178 @@ $('start-btn').onclick = async () => {
   loadTrack();
 };
 
-// ---------- Camera ----------
+// ---------- Camera (iPhone High-Resolution + Native Sensor Controls) ----------
 let stream = null;
+let currentVideoTrack = null;
+let isTorchOn = false;
+let currentCameraZoom = 1;
+let focusReticleTimer = null;
+
+function initCameraControls() {
+  const v = $('video');
+  if (!v || v._cameraControlsInit) return;
+  v._cameraControlsInit = true;
+
+  // 1. iPhone Yellow Tap-to-Focus Reticle
+  v.addEventListener('click', async e => {
+    if (!stream) return;
+    const rect = v.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const reticle = $('focus-reticle');
+    if (reticle) {
+      reticle.style.left = `${x}px`;
+      reticle.style.top = `${y}px`;
+      reticle.classList.remove('hidden', 'fade-out');
+
+      if ('vibrate' in navigator) navigator.vibrate(15);
+
+      if (currentVideoTrack) {
+        const caps = currentVideoTrack.getCapabilities ? currentVideoTrack.getCapabilities() : {};
+        if (caps && caps.pointsOfInterest) {
+          try {
+            await currentVideoTrack.applyConstraints({
+              advanced: [{ pointsOfInterest: [{ x: x / rect.width, y: y / rect.height }] }]
+            });
+          } catch (err) {}
+        }
+      }
+
+      clearTimeout(focusReticleTimer);
+      focusReticleTimer = setTimeout(() => {
+        reticle.classList.add('fade-out');
+        setTimeout(() => reticle.classList.add('hidden'), 400);
+      }, 1800);
+    }
+  });
+
+  // 2. Hardware Torch / Flashlight Toggle
+  if ($('torch-btn')) {
+    $('torch-btn').onclick = async e => {
+      e.stopPropagation();
+      if (!currentVideoTrack) return;
+      try {
+        isTorchOn = !isTorchOn;
+        await currentVideoTrack.applyConstraints({ advanced: [{ torch: isTorchOn }] });
+        $('torch-btn').classList.toggle('active', isTorchOn);
+        if ('vibrate' in navigator) navigator.vibrate(20);
+      } catch (err) {
+        console.warn('Torch toggle not supported:', err);
+      }
+    };
+  }
+
+  // 3. iPhone Lens Zoom Switcher (.5, 1x, 2x)
+  document.querySelectorAll('.zoom-pill').forEach(btn => {
+    btn.onclick = async e => {
+      e.stopPropagation();
+      const z = parseFloat(btn.dataset.z);
+      document.querySelectorAll('.zoom-pill').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      currentCameraZoom = z;
+
+      if ('vibrate' in navigator) navigator.vibrate(20);
+
+      let hardwareApplied = false;
+      if (currentVideoTrack) {
+        const caps = currentVideoTrack.getCapabilities ? currentVideoTrack.getCapabilities() : {};
+        if (caps && caps.zoom) {
+          try {
+            const clamped = Math.max(caps.zoom.min, Math.min(caps.zoom.max, z));
+            await currentVideoTrack.applyConstraints({ advanced: [{ zoom: clamped }] });
+            hardwareApplied = true;
+          } catch (err) {}
+        }
+      }
+
+      if (hardwareApplied) {
+        v.style.transform = 'none';
+      } else {
+        v.style.transform = z === 1 ? 'none' : `scale(${z})`;
+        v.style.transition = 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)';
+      }
+    };
+  });
+
+  // 4. Native 48MP iPhone Camera File Picker Ingestion
+  if ($('native-cam-input')) {
+    $('native-cam-input').onchange = async e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if ('vibrate' in navigator) navigator.vibrate([25, 20, 35]);
+
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width;
+          let h = img.height;
+          const MAX_DIM = 2560; // 2.5K high resolution preserve
+          if (w > MAX_DIM || h > MAX_DIM) {
+            const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+          }
+          const c = document.createElement('canvas');
+          c.width = w;
+          c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          const fullPhotoUrl = c.toDataURL('image/jpeg', 0.92);
+
+          // Fast 256px crop for CLIP AI
+          const thumbC = document.createElement('canvas');
+          thumbC.width = 256;
+          thumbC.height = 256;
+          const minDim = Math.min(img.width, img.height);
+          const sx = (img.width - minDim) / 2;
+          const sy = (img.height - minDim) / 2;
+          thumbC.getContext('2d').drawImage(img, sx, sy, minDim, minDim, 0, 0, 256, 256);
+          const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.85);
+
+          pending = { photo: fullPhotoUrl, guesses: [] };
+          $('result-img').src = fullPhotoUrl;
+          $('guesses').textContent = 'Identifying 48MP capture with on-device AI...';
+          $('name-field').value = '';
+          show('result', true);
+
+          runIdentification(thumbDataUrl);
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    };
+  }
+}
+
 $('cam-btn').onclick = async () => {
   if (stream) { stopCamera(); return; }
   try {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-    } catch (camErr) {
-      // Fallback for laptops/desktops without an environment camera
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      // 1. High-resolution constraints (4K / 1080p target)
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 3840, min: 1280 },
+          height: { ideal: 2160, min: 720 }
+        },
+        audio: false
+      });
+    } catch (hiResErr) {
+      try {
+        // Fallback for standard mobile environment camera
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false
+        });
+      } catch (camErr) {
+        // Fallback for desktop/laptop webcams
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
     }
+
     $('video').srcObject = stream;
     await $('video').play();
     show('cam-msg', false);
@@ -154,21 +316,45 @@ $('cam-btn').onclick = async () => {
     $('cam-btn-text').textContent = 'Stop camera';
     $('lens-status').textContent = '● Live Lens';
     $('lens-status').classList.add('active');
-    warmModel(); // start loading the model while the user aims the camera
+
+    const [vTrack] = stream.getVideoTracks();
+    currentVideoTrack = vTrack;
+    isTorchOn = false;
+    if ($('torch-btn')) {
+      $('torch-btn').classList.remove('active');
+      const caps = vTrack?.getCapabilities ? vTrack.getCapabilities() : {};
+      if (caps && caps.torch) {
+        $('torch-btn').classList.remove('hidden');
+      } else {
+        $('torch-btn').classList.add('hidden');
+      }
+    }
+
+    warmModel(); // start loading model in background while user points lens
   } catch (e) {
     $('cam-msg').textContent = 'Camera unavailable: ' + (e.message || e.name);
   }
 };
+
 function stopCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null;
+  currentVideoTrack = null;
+  isTorchOn = false;
   $('video').srcObject = null;
+  $('video').style.transform = 'none';
   show('cam-msg', true);
   $('cam-msg').textContent = 'Camera is off';
   $('snap-btn').disabled = true;
   $('cam-btn-text').textContent = 'Start camera';
   $('lens-status').textContent = '○ Standby';
   $('lens-status').classList.remove('active');
+  if ($('torch-btn')) {
+    $('torch-btn').classList.add('hidden');
+    $('torch-btn').classList.remove('active');
+  }
+  const reticle = $('focus-reticle');
+  if (reticle) reticle.classList.add('hidden');
 }
 
 // ---------- On-device identification (open model, runs in the browser) ----------
@@ -196,26 +382,89 @@ function warmModel() {
 }
 
 let pending = null; // the capture waiting for confirmation
+
 $('snap-btn').onclick = async () => {
   const v = $('video');
   if (!v.videoWidth) return;
-  if ('vibrate' in navigator) navigator.vibrate(40);
-  const c = document.createElement('canvas');
-  const scale = 480 / Math.max(v.videoWidth, v.videoHeight);
-  c.width = Math.round(v.videoWidth * scale);
-  c.height = Math.round(v.videoHeight * scale);
-  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-  const dataUrl = c.toDataURL('image/jpeg', 0.8);
-  pending = { photo: dataUrl, guesses: [] };
-  $('result-img').src = dataUrl;
-  $('guesses').textContent = 'Identifying...';
+
+  // 1. iPhone Shutter Flash Screen Effect
+  const flash = $('shutter-flash');
+  if (flash) {
+    flash.classList.add('flash-active');
+    setTimeout(() => flash.classList.remove('flash-active'), 120);
+  }
+
+  // 2. Crisp mechanical shutter haptic tap
+  if ('vibrate' in navigator) navigator.vibrate([25, 20, 35]);
+
+  // 3. High-Resolution Sensor Capture
+  let fullPhotoUrl = null;
+
+  if ('ImageCapture' in window && currentVideoTrack) {
+    try {
+      const capture = new ImageCapture(currentVideoTrack);
+      const blob = await capture.takePhoto();
+      fullPhotoUrl = await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = evt => resolve(evt.target.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (icErr) {
+      // Graceful fallback to high-res canvas draw
+    }
+  }
+
+  if (!fullPhotoUrl) {
+    const c = document.createElement('canvas');
+    let w = v.videoWidth;
+    let h = v.videoHeight;
+    const MAX_DIM = 2560; // 2.5K high quality retina
+    if (w > MAX_DIM || h > MAX_DIM) {
+      const scale = Math.min(MAX_DIM / w, MAX_DIM / h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    if (currentCameraZoom !== 1 && v.style.transform && v.style.transform !== 'none') {
+      ctx.save();
+      ctx.translate(c.width / 2, c.height / 2);
+      ctx.scale(currentCameraZoom, currentCameraZoom);
+      ctx.translate(-c.width / 2, -c.height / 2);
+      ctx.drawImage(v, 0, 0, c.width, c.height);
+      ctx.restore();
+    } else {
+      ctx.drawImage(v, 0, 0, c.width, c.height);
+    }
+    fullPhotoUrl = c.toDataURL('image/jpeg', 0.92);
+  }
+
+  // 4. Lightweight 256px Thumbnail strictly for on-device CLIP inference
+  const thumbC = document.createElement('canvas');
+  thumbC.width = 256;
+  thumbC.height = 256;
+  const thumbCtx = thumbC.getContext('2d');
+  const minDim = Math.min(v.videoWidth || 256, v.videoHeight || 256);
+  const sx = ((v.videoWidth || 256) - minDim) / 2;
+  const sy = ((v.videoHeight || 256) - minDim) / 2;
+  thumbCtx.drawImage(v, sx, sy, minDim, minDim, 0, 0, 256, 256);
+  const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.85);
+
+  pending = { photo: fullPhotoUrl, guesses: [] };
+  $('result-img').src = fullPhotoUrl;
+  $('guesses').textContent = 'Identifying specimen with on-device AI...';
   $('name-field').value = '';
   show('result', true);
 
+  await runIdentification(thumbDataUrl);
+};
+
+async function runIdentification(thumbDataUrl) {
   const pipe = await warmModel();
   if (pipe) {
     try {
-      const out = await pipe(dataUrl, LABELS, { hypothesis_template: 'a photo of a {}.' });
+      const out = await pipe(thumbDataUrl, LABELS, { hypothesis_template: 'a photo of a {}.' });
       const ranked = [...out].sort((a, b) => b.score - a.score);
       if (ranked[0].label === NONE_LABEL) {
         $('guesses').textContent = 'Looks like nothing wild here. Try again or name it yourself.';
@@ -231,7 +480,7 @@ $('snap-btn').onclick = async () => {
   } else {
     $('guesses').textContent = 'Model not available. Name it yourself.';
   }
-};
+}
 function renderGuesses() {
   const box = $('guesses');
   box.textContent = '';
@@ -487,7 +736,11 @@ function init3DCardPhysics() {
     toggleCardFlip();
   });
 
+  let lastFlipTime = 0;
   function toggleCardFlip() {
+    const now = Date.now();
+    if (now - lastFlipTime < 450) return; // Prevent mobile double-flip from touchend + click
+    lastFlipTime = now;
     isCardFlipped = !isCardFlipped;
     card.classList.toggle('is-flipped', isCardFlipped);
     card.style.transform = isCardFlipped
@@ -763,34 +1016,39 @@ async function renderVintagePostcard(find) {
   g.font = '9px system-ui, sans-serif';
   g.fillStyle = '#657367';
   g.fillText('100% ON-DEVICE & PRIVACY-FIRST  ·  TOUCH GRASS 2026  ·  WILDTRAIL PWA', 400, 942);
+
+  // 10. Pre-generate shareable File object immediately so navigator.share is 100% synchronous on iOS Safari
+  pregeneratedPostcardFile = null;
+  cv.toBlob(blob => {
+    if (blob) {
+      const safeName = (find.name || 'specimen').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+      pregeneratedPostcardFile = new File([blob], `wildtrail-${safeName}-${Date.now()}.png`, { type: 'image/png' });
+    }
+  }, 'image/png');
 }
+
+let pregeneratedPostcardFile = null;
 
 async function sharePostcard() {
   const cv = $('postcard-canvas');
   if (!cv || !activePostcardFind) return;
 
-  cv.toBlob(async blob => {
-    if (!blob) return;
-    const safeName = activePostcardFind.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-    const filename = `wildtrail-${safeName}-${Date.now()}.png`;
-    const file = new File([blob], filename, { type: 'image/png' });
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: `${activePostcardFind.name} · WildTrail Specimen Postcard`,
-          text: `Collected in the wild with WildTrail 🌿 (100% on-device & private)`
-        });
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          downloadPostcard();
-        }
-      }
-    } else {
-      downloadPostcard();
+  const file = pregeneratedPostcardFile;
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: `${activePostcardFind.name} · WildTrail Specimen Postcard`,
+        text: `Collected in the wild with WildTrail 🌿 (100% on-device & private)`
+      });
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return; // User cancelled native share sheet
     }
-  }, 'image/png');
+  }
+
+  // Fallback to direct download
+  downloadPostcard();
 }
 
 function downloadPostcard() {
@@ -1359,12 +1617,12 @@ function initMapInteractions() {
   cv.addEventListener('gestureend', e => e.preventDefault());
 
   // ---------- 1. Multi-Touch Pinch-to-Zoom & Touch Panning (Fingers) ----------
-  let touchStartDist = 0;
-  let touchStartZoom = 1;
+  let lastTouchX = 0;
+  let lastTouchY = 0;
   let touchStartPos = { x: 0, y: 0 };
-  let touchStartPan = { x: 0, y: 0 };
   let touchMoved = false;
   let isPinching = false;
+  let lastPinchDist = 0;
 
   cv.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
@@ -1372,53 +1630,54 @@ function initMapInteractions() {
       e.preventDefault();
       isPinching = true;
       touchMoved = true;
-      touchStartDist = Math.hypot(
+      lastPinchDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      touchStartZoom = zoom;
     } else if (e.touches.length === 1 && !isPinching) {
       // One finger: initiate panning
       touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      touchStartPan = { x: panX, y: panY };
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
       touchMoved = false;
     }
   }, { passive: false });
 
   cv.addEventListener('touchmove', e => {
     if (e.touches.length === 2) {
-      // Two fingers: dynamically zoom in/out
+      // Two fingers: dynamically zoom in/out with fingers
       e.preventDefault();
       const currentDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      if (touchStartDist > 10 && currentDist > 10) {
-        const scale = currentDist / touchStartDist;
-        const newZoom = Math.min(8, Math.max(0.15, touchStartZoom * scale));
-        const oldZoom = zoom;
+      if (lastPinchDist > 8 && currentDist > 8) {
+        const factor = currentDist / lastPinchDist;
+        const newZoom = Math.min(8, Math.max(0.15, zoom * factor));
         zoom = newZoom;
 
         if (mapInstance) {
-          const zoomDiff = Math.log2(zoom / oldZoom);
-          if (Math.abs(zoomDiff) > 0.01) {
-            mapInstance.setZoom(mapInstance.getZoom() + zoomDiff);
-          }
+          const deltaZoom = Math.log2(factor);
+          mapInstance.setZoom(mapInstance.getZoom() + deltaZoom);
         }
+        lastPinchDist = currentDist;
         drawMapCanvas(cachedFinds, cachedCells);
       }
     } else if (e.touches.length === 1 && !isPinching) {
-      // One finger: drag map
-      const dx = e.touches[0].clientX - touchStartPos.x;
-      const dy = e.touches[0].clientY - touchStartPos.y;
-      if (Math.hypot(dx, dy) > 6) {
+      // One finger: smooth 1:1 direct manipulation dragging
+      const stepX = e.touches[0].clientX - lastTouchX;
+      const stepY = e.touches[0].clientY - lastTouchY;
+      const totalDist = Math.hypot(e.touches[0].clientX - touchStartPos.x, e.touches[0].clientY - touchStartPos.y);
+      if (totalDist > 6 || touchMoved) {
         e.preventDefault();
         touchMoved = true;
-        panX = touchStartPan.x + dx;
-        panY = touchStartPan.y + dy;
+        panX += stepX;
+        panY += stepY;
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
 
         if (mapInstance) {
-          mapInstance.panBy([-dx * 0.1, -dy * 0.1], { animate: false });
+          mapInstance.panBy([-stepX, -stepY], { animate: false });
         }
 
         if (panX !== 0 || panY !== 0) {
@@ -1432,6 +1691,10 @@ function initMapInteractions() {
   cv.addEventListener('touchend', e => {
     if (e.touches.length < 2) {
       isPinching = false;
+    }
+    if (e.touches.length === 1) {
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
     }
 
     // Single tap hit-testing on pins if finger didn't drag
