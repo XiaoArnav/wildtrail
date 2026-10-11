@@ -613,6 +613,7 @@ function initCameraControls() {
 
           pending = { photo: fullPhotoUrl, guesses: [] };
           $('result-img').src = fullPhotoUrl;
+          updateResultMediaAspect();
           $('guesses').textContent = 'Identifying 48MP capture with on-device AI...';
           $('name-field').value = '';
           show('result', true);
@@ -1021,6 +1022,49 @@ function warmModel() {
 
 let pending = null; // the capture waiting for confirmation
 
+function updateResultMediaAspect() {
+  const img = $('result-img');
+  if (!img) return;
+  const media = img.closest('.result-media');
+  if (img.naturalWidth && img.naturalHeight && media) {
+    media.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+  }
+}
+
+if ($('result-img')) {
+  $('result-img').addEventListener('load', updateResultMediaAspect);
+  $('result-img').onclick = () => {
+    if (pending?.photo) {
+      openPhotoLightbox(pending.photo, $('name-field')?.value || 'Captured Specimen');
+    }
+  };
+}
+
+// ---------- Fullscreen Photo Lightbox ----------
+function openPhotoLightbox(photoUrl, title = 'Specimen Photo') {
+  const modal = $('lightbox-modal');
+  const img = $('lightbox-img');
+  const cap = $('lightbox-caption');
+  if (!modal || !img) return;
+  img.src = photoUrl;
+  if (cap) cap.textContent = title;
+  modal.classList.remove('hidden');
+}
+
+function closePhotoLightbox() {
+  const modal = $('lightbox-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+if ($('lightbox-close-btn')) {
+  $('lightbox-close-btn').onclick = closePhotoLightbox;
+}
+if ($('lightbox-modal')) {
+  $('lightbox-modal').onclick = e => {
+    if (e.target === $('lightbox-modal')) closePhotoLightbox();
+  };
+}
+
 $('snap-btn').onclick = async () => {
   const v = $('video');
   if (!v.videoWidth) return;
@@ -1094,9 +1138,40 @@ $('snap-btn').onclick = async () => {
 
   pending = { photo: fullPhotoUrl, guesses: [] };
   $('result-img').src = fullPhotoUrl;
-  $('guesses').textContent = 'Identifying specimen with on-device AI...';
+  updateResultMediaAspect();
   $('name-field').value = '';
   show('result', true);
+
+  if ($('result-location-badge')) {
+    $('result-location-badge').textContent = '📍 Acquiring GPS coordinates...';
+  }
+  if ($('result-status-tag')) {
+    $('result-status-tag').textContent = 'Draft Specimen';
+    $('result-status-tag').className = 'result-status-tag';
+  }
+
+  getPosition().then(pos => {
+    if (pos && $('result-location-badge')) {
+      const latStr = `${pos.lat.toFixed(4)}° ${pos.lat >= 0 ? 'N' : 'S'}`;
+      const lonStr = `${pos.lon.toFixed(4)}° ${pos.lon >= 0 ? 'E' : 'W'}`;
+      const accStr = pos.accuracy ? ` (±${Math.round(pos.accuracy)}m)` : '';
+      $('result-location-badge').textContent = `📍 ${latStr}, ${lonStr}${accStr}`;
+    }
+  }).catch(() => {
+    if ($('result-location-badge')) {
+      $('result-location-badge').textContent = '📍 Location saved with timestamp';
+    }
+  });
+
+  // Skeleton shimmer while AI infers
+  $('guesses').innerHTML = `
+    <div class="skeleton-shimmer-row">
+      <div class="skeleton-guess-pill shimmer"></div>
+      <div class="skeleton-guess-pill shimmer"></div>
+      <div class="skeleton-guess-pill shimmer"></div>
+    </div>
+    <p class="identifying-hint">Identifying specimen with on-device AI...</p>
+  `;
 
   await runIdentification(thumbDataUrl);
 };
@@ -1113,6 +1188,10 @@ async function runIdentification(thumbDataUrl) {
         pending.guesses = ranked.filter(r => r.label !== NONE_LABEL).slice(0, 3);
         renderGuesses();
         pickGuess(pending.guesses[0]);
+        if ($('result-status-tag')) {
+          $('result-status-tag').textContent = 'AI Match Found';
+          $('result-status-tag').className = 'result-status-tag is-matched';
+        }
         return;
       }
     } catch (e) {
@@ -1225,11 +1304,15 @@ $('save-btn').onclick = async () => {
   if ('vibrate' in navigator) navigator.vibrate([40, 50, 80]);
   const pos = lastPos || await getPosition();
   const photoToSave = pending.photo;
-  await putAll('finds', {
+  const record = {
     name, type: $('type-field').value, photo: photoToSave, time: Date.now(),
     lat: pos ? pos.lat : null, lon: pos ? pos.lon : null,
     guessed: pending.guesses[0] ? pending.guesses[0].label : null,
-  });
+  };
+  if (pending.existingFindId) {
+    record.id = pending.existingFindId;
+  }
+  await putAll('finds', record);
 
   // Option A: Auto-download high-resolution photo to device storage
   const safeName = name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
@@ -1528,6 +1611,13 @@ function init3DCardPhysics() {
       : 'perspective(1000px) rotateY(0deg)';
   }
 
+  if ($('stamp-action-view-species')) {
+    $('stamp-action-view-species').onclick = e => {
+      e.stopPropagation();
+      openFindInSpeciesPanel(find);
+    };
+  }
+
   // Close handlers
   $('stamp-modal-close').onclick = () => show('stamp-modal', false);
   $('stamp-modal').onclick = e => {
@@ -1535,8 +1625,40 @@ function init3DCardPhysics() {
   };
 }
 
+function openFindInSpeciesPanel(find) {
+  if (!find) return;
+  show('stamp-modal', false);
+  showView('capture');
+  pending = {
+    photo: find.photo,
+    guesses: find.guessed ? [{ label: find.guessed, score: 0.99 }] : [{ label: find.name, score: 1.0 }],
+    existingFindId: find.id
+  };
+  $('result-img').src = find.photo;
+  updateResultMediaAspect();
+  $('name-field').value = find.name || '';
+  $('type-field').value = find.type || 'flower';
+  if ($('result-status-tag')) {
+    $('result-status-tag').textContent = 'Saved Specimen';
+    $('result-status-tag').className = 'result-status-tag is-matched';
+  }
+  if ($('result-location-badge')) {
+    const locDate = getLocationAndDate(find);
+    $('result-location-badge').textContent = `📍 ${locDate.location} · ${locDate.date}`;
+  }
+  const guessBox = $('guesses');
+  if (guessBox) {
+    guessBox.textContent = '';
+    const b = document.createElement('button');
+    b.className = 'guess-pill on';
+    b.innerHTML = `<span>${find.guessed || find.name}</span> <span class="score-badge">Verified</span>`;
+    guessBox.appendChild(b);
+  }
+  show('result', true);
+}
+
 function openDetailModal(find) {
-  open3DStampCard(find);
+  openFindInSpeciesPanel(find);
 }
 
 // ---------- Feature: Vintage Field Postcard & Herbarium Archive Card ----------
