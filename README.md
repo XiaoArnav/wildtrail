@@ -240,8 +240,9 @@ Open **`http://localhost:8000`** in your browser.
 - [x] 1-Click in-app Wilderness Map Pack downloader with streaming progress.
 - [x] Vintage herbarium collector postcard export with postmark stamps.
 - [x] IndexedDB storage quota management and archive inspector.
-- [ ] Extended species taxonomy catalogue (fungi, alpine mosses, nocturnal insects).
-- [ ] GPX and GeoJSON track export for trail enthusiasts.
+- [ ] [**#1 — GPX trail export alongside JSON format**](https://github.com/XiaoArnav/wildtrail/issues/1) *(Good first issue · Enhancement)*
+- [ ] [**#2 — Expand offline species taxonomy catalogue for butterflies & wildflowers**](https://github.com/XiaoArnav/wildtrail/issues/2) *(Good first issue · Data)*
+- [ ] [**#3 — Add high-contrast mode for outdoor sunlight readability**](https://github.com/XiaoArnav/wildtrail/issues/3) *(UI/UX · Accessibility)*
 - [ ] Audio bird call identification using on-device acoustic models.
 
 ---

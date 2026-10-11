@@ -17,7 +17,15 @@ Thank you for your interest in contributing to WildTrail! This project is partic
    ```
    Open `http://localhost:8000` in your browser.
 
-## Ways to Contribute
+## Active Hacktoberfest 2026 Issues 🎯
+
+Jump right into one of our open issues curated for contributors:
+
+* [**#1 — GPX trail export alongside existing JSON format**](https://github.com/XiaoArnav/wildtrail/issues/1) *(Labels: `enhancement`, `good first issue`, `hacktoberfest`)*
+* [**#2 — Expand offline species prompt list for regional butterflies & wildflowers**](https://github.com/XiaoArnav/wildtrail/issues/2) *(Labels: `data`, `good first issue`, `hacktoberfest`)*
+* [**#3 — Add high-contrast mode for outdoor sunlight readability**](https://github.com/XiaoArnav/wildtrail/issues/3) *(Labels: `ui`, `enhancement`, `hacktoberfest`)*
+
+## Other Ways to Contribute
 
 * **New Species & Prompts:** Expand the offline candidate species array in `app.js` to recognize more birds, insects, flowers, and animals.
 * **Trail & GIS Exports:** Help implement GPX / KML exports for hiker trail data.
