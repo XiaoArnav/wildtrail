@@ -524,6 +524,13 @@ video {
   touch-action: none;
 }
 
+/* Hide on laptops, desktops, and fine-pointer devices (Mouse wheel & Trackpad finger zoom used instead) */
+@media (hover: hover) and (pointer: fine), (min-width: 900px) {
+  .camera-zoom-container {
+    display: none !important;
+  }
+}
+
 .zoom-gesture-track {
   display: flex;
   align-items: center;

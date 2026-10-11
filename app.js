@@ -340,7 +340,7 @@ function applyVideoTransform() {
 
 function setCameraZoom(z) {
   // Always strictly clamped between 1.0x and 5.0x so video ALWAYS fills viewfinder (zero black bars!)
-  const clamped = Math.min(5.0, Math.max(1.0, Math.round(z * 10) / 10));
+  const clamped = Math.min(5.0, Math.max(1.0, Math.round(z * 100) / 100));
   currentCameraZoom = clamped;
 
   applyVideoTransform();
@@ -408,14 +408,44 @@ function initCameraControls() {
     }
   });
 
-  // 2. Laptop & Desktop Mouse Wheel / Trackpad Scroller Zoom
+  // 2. Laptop & Desktop Mouse Wheel / Trackpad Scroller & Pinch Zoom
   if (camBox) {
     camBox.addEventListener('wheel', e => {
       if (!stream) return;
       e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.2 : -0.2;
+      lastPinchTime = Date.now();
+      let delta = 0;
+      if (e.ctrlKey) {
+        // macOS & Windows trackpad 2-finger pinch (Ctrl+Wheel)
+        delta = -e.deltaY * 0.02;
+      } else {
+        // Physical mouse scroll wheel or 2-finger trackpad vertical scroll
+        delta = e.deltaY < 0 ? 0.2 : -0.2;
+      }
       setCameraZoom(currentCameraZoom + delta);
       if ('vibrate' in navigator) navigator.vibrate(10);
+    }, { passive: false });
+
+    // Apple Safari trackpad 2-finger pinch gesture events
+    let trackpadStartZoom = 1.0;
+    camBox.addEventListener('gesturestart', e => {
+      if (!stream) return;
+      e.preventDefault();
+      lastPinchTime = Date.now();
+      trackpadStartZoom = currentCameraZoom;
+    }, { passive: false });
+
+    camBox.addEventListener('gesturechange', e => {
+      if (!stream) return;
+      e.preventDefault();
+      lastPinchTime = Date.now();
+      setCameraZoom(trackpadStartZoom * e.scale);
+    }, { passive: false });
+
+    camBox.addEventListener('gestureend', e => {
+      if (!stream) return;
+      e.preventDefault();
+      lastPinchTime = Date.now();
     }, { passive: false });
 
     // 3. Mobile Two-Finger Pinch-to-Zoom
