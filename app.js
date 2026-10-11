@@ -3706,6 +3706,43 @@ $('export-btn').onclick = async () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = 'wildtrail-data.json'; a.click();
 };
+$('export-gpx-btn').onclick = async () => {
+  const track = await getAll('track');
+  if (!track.length) {
+    alert('No trail track points found yet. Start tracking to record a trail first.');
+    return;
+  }
+  const escapeXml = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+  const trkpts = track
+    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon))
+    .map(p => {
+      const time = Number.isFinite(p.t) ? `<time>${new Date(p.t).toISOString()}</time>` : '';
+      return `      <trkpt lat="${p.lat}" lon="${p.lon}">${time}</trkpt>`;
+    })
+    .join('\n');
+  if (!trkpts) {
+    alert('No valid GPS coordinates found in your recorded trail.');
+    return;
+  }
+  const profileName = escapeXml((await metaGet('name')) || 'WildTrail Explorer');
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="WildTrail" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>${profileName} Trail</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`;
+  const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'wildtrail-trail.gpx'; a.click();
+};
 $('wipe-btn').onclick = async () => {
   if (!confirm('Erase all finds, tracks, offline maps and profile from this device?')) return;
   await clearAll();
