@@ -22,26 +22,6 @@
 
 ---
 
-## 🧭 Table of Contents
-
-- [The Mission: The Wild is Closer Than You Think](#-the-mission-the-wild-is-closer-than-you-think)
-- [How It Works](#-how-it-works)
-- [Visual Walkthrough](#-visual-walkthrough)
-  - [01 · On-Device Species Scanner](#01--on-device-species-scanner)
-  - [02 · Collectible Field Guide & 3D Stamps](#02--collectible-field-guide--3d-stamps)
-  - [03 · Territory Fog-of-War & Offline Maps](#03--territory-fog-of-war--offline-maps)
-  - [04 · Vintage Herbarium Postcard Export](#04--vintage-herbarium-postcard-export)
-- [🔒 Zero-Telemetry Local Architecture](#-zero-telemetry-local-architecture)
-- [🗺️ Complete Offline Vector Maps System](#️-complete-offline-vector-maps-system)
-- [🏗️ Technology Stack](#️-technology-stack)
-- [🚀 Quick Start & Installation](#-quick-start--installation)
-- [🗺️ Roadmap & Milestones](#️-roadmap--milestones)
-- [🤝 Contributing & Standards](#-contributing--standards)
-- [📜 Credits & Open Source Attribution](#-credits--open-source-attribution)
-- [⚖️ License](#️-license)
-
----
-
 ## 🌿 The Mission: The Wild is Closer Than You Think
 
 Most modern applications are engineered to keep you staring down at glass screens. **WildTrail does the exact opposite:** it turns your walk through a neighborhood park, forest reserve, or mountain trail into an immersive botanical expedition.
