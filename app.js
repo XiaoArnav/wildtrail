@@ -142,12 +142,15 @@ let audioCtx = null;
 let shutterAudio = null;
 
 function createShutterWavUrl() {
-  const sampleRate = 22050;
-  const duration = 0.14;
+  // Generates an authentic vintage 35mm mechanical SLR camera shutter sound (Ka-chunk!)
+  // Featuring mirror box body resonance, escapement gear transit, and focal-plane curtain rebound
+  const sampleRate = 32000;
+  const duration = 0.28;
   const numSamples = Math.floor(sampleRate * duration);
   const buffer = new ArrayBuffer(44 + numSamples * 2);
   const view = new DataView(buffer);
   const writeStr = (offset, s) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)); };
+
   writeStr(0, 'RIFF');
   view.setUint32(4, 36 + numSamples * 2, true);
   writeStr(8, 'WAVEfmt ');
@@ -161,25 +164,53 @@ function createShutterWavUrl() {
   writeStr(36, 'data');
   view.setUint32(40, numSamples * 2, true);
 
-  const addClick = (startTime, freq, amp) => {
-    const startIdx = Math.floor(startTime * sampleRate);
-    const burstLen = Math.floor(sampleRate * 0.028);
-    for (let i = 0; i < burstLen; i++) {
+  const raw = new Float32Array(numSamples);
+
+  const addImpulse = (startT, durT, f1, f2, amp, noiseRatio, decayT) => {
+    const startIdx = Math.floor(startT * sampleRate);
+    const durIdx = Math.floor(durT * sampleRate);
+    for (let i = 0; i < durIdx; i++) {
       const idx = startIdx + i;
       if (idx >= numSamples) break;
       const t = i / sampleRate;
-      const env = Math.exp(-i / (sampleRate * 0.004));
-      const noise = (Math.random() * 2 - 1) * 0.8;
-      const tone = Math.sin(2 * Math.PI * freq * t) * 0.6 + Math.sin(2 * Math.PI * (freq * 1.55) * t) * 0.4;
-      const s = Math.max(-1, Math.min(1, (noise + tone) * env * amp));
-      const cur = view.getInt16(44 + idx * 2, true);
-      const combined = Math.max(-32768, Math.min(32767, cur + Math.floor(s * 32767)));
-      view.setInt16(44 + idx * 2, combined, true);
+      const env = Math.exp(-i / (sampleRate * decayT));
+      const tone = Math.sin(2 * Math.PI * f1 * t) * 0.6 + Math.sin(2 * Math.PI * f2 * t) * 0.4;
+      const noise = (Math.random() * 2 - 1);
+      const sample = (tone * (1 - noiseRatio) + noise * noiseRatio) * env * amp;
+      raw[idx] += sample;
     }
   };
-  // Mechanical double-click (blade opening at 3ms, blade closing at 55ms)
-  addClick(0.003, 2800, 0.95);
-  addClick(0.055, 1900, 1.0);
+
+  // 1. Mechanical Shutter Button Release Latch (t = 2ms)
+  addImpulse(0.002, 0.035, 2200, 3400, 0.75, 0.65, 0.005);
+
+  // 2. Heavy 35mm Mirror Box Slap (The deep "Ka-" at 16ms)
+  addImpulse(0.016, 0.085, 130, 240, 1.0, 0.3, 0.026);
+
+  // 3. Focal-Plane Cloth Curtain Transit & Escapement Gears (38ms - 95ms)
+  [0.038, 0.050, 0.063, 0.076, 0.090].forEach(gt => {
+    addImpulse(gt, 0.018, 1600, 2600, 0.35, 0.8, 0.004);
+  });
+
+  // 4. Secondary Curtain & Mirror Rebound (The heavy "-CHUNK!" at 112ms)
+  addImpulse(0.112, 0.095, 175, 420, 0.95, 0.4, 0.024);
+  addImpulse(0.122, 0.045, 1100, 2100, 0.7, 0.6, 0.009);
+
+  // 5. Final mechanical spring latch settle (158ms)
+  addImpulse(0.158, 0.035, 1500, 2300, 0.4, 0.5, 0.007);
+
+  // Normalize and convert to 16-bit PCM
+  let maxAmp = 0.001;
+  for (let i = 0; i < numSamples; i++) {
+    const a = Math.abs(raw[i]);
+    if (a > maxAmp) maxAmp = a;
+  }
+  const scale = 0.94 / maxAmp;
+  for (let i = 0; i < numSamples; i++) {
+    const clamped = Math.max(-1, Math.min(1, raw[i] * scale));
+    const s16 = Math.max(-32768, Math.min(32767, Math.floor(clamped * 32767)));
+    view.setInt16(44 + i * 2, s16, true);
+  }
 
   const blob = new Blob([buffer], { type: 'audio/wav' });
   return URL.createObjectURL(blob);
@@ -233,20 +264,21 @@ function playShutterSound() {
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'running') {
       const t = ctx.currentTime;
-      const createClick = (startTime, freq) => {
+      const createClick = (startTime, freq, duration, gainVal) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, startTime);
-        gain.gain.setValueAtTime(0.45, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.025);
+        gain.gain.setValueAtTime(gainVal, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(startTime);
-        osc.stop(startTime + 0.03);
+        osc.stop(startTime + duration + 0.005);
       };
-      createClick(t, 2800);
-      createClick(t + 0.05, 1900);
+      createClick(t, 2200, 0.025, 0.4);       // Release click
+      createClick(t + 0.015, 160, 0.05, 0.5);  // Mirror slap body
+      createClick(t + 0.11, 190, 0.06, 0.45);  // Curtain rebound thud
     }
   } catch (_) {}
 }
