@@ -1094,9 +1094,46 @@ $('snap-btn').onclick = async () => {
 
   pending = { photo: fullPhotoUrl, guesses: [] };
   $('result-img').src = fullPhotoUrl;
-  $('guesses').textContent = 'Identifying specimen with on-device AI...';
   $('name-field').value = '';
   show('result', true);
+
+  if ($('result-location-badge')) {
+    $('result-location-badge').textContent = '📍 Acquiring GPS coordinates...';
+  }
+  if ($('result-status-tag')) {
+    $('result-status-tag').textContent = 'Draft Specimen';
+    $('result-status-tag').className = 'result-status-tag';
+  }
+
+  getPosition().then(pos => {
+    if (pos && $('result-location-badge')) {
+      const latStr = `${pos.lat.toFixed(4)}° ${pos.lat >= 0 ? 'N' : 'S'}`;
+      const lonStr = `${pos.lon.toFixed(4)}° ${pos.lon >= 0 ? 'E' : 'W'}`;
+      const accStr = pos.accuracy ? ` (±${Math.round(pos.accuracy)}m)` : '';
+      $('result-location-badge').textContent = `📍 ${latStr}, ${lonStr}${accStr}`;
+    }
+  }).catch(() => {
+    if ($('result-location-badge')) {
+      $('result-location-badge').textContent = '📍 Location saved with timestamp';
+    }
+  });
+
+  // Tap photo to open full-resolution lightbox
+  $('result-img').onclick = () => {
+    if (pending?.photo) {
+      openPhotoLightbox(pending.photo, $('name-field').value || 'Captured Specimen');
+    }
+  };
+
+  // Modern skeleton shimmer while AI infers
+  $('guesses').innerHTML = `
+    <div class="skeleton-shimmer-row">
+      <div class="skeleton-guess-pill shimmer"></div>
+      <div class="skeleton-guess-pill shimmer"></div>
+      <div class="skeleton-guess-pill shimmer"></div>
+    </div>
+    <p class="identifying-hint">Identifying specimen with on-device AI...</p>
+  `;
 
   await runIdentification(thumbDataUrl);
 };
@@ -1113,6 +1150,10 @@ async function runIdentification(thumbDataUrl) {
         pending.guesses = ranked.filter(r => r.label !== NONE_LABEL).slice(0, 3);
         renderGuesses();
         pickGuess(pending.guesses[0]);
+        if ($('result-status-tag')) {
+          $('result-status-tag').textContent = 'AI Match Found';
+          $('result-status-tag').className = 'result-status-tag is-matched';
+        }
         return;
       }
     } catch (e) {
@@ -1142,8 +1183,47 @@ function pickGuess(g) {
   $('type-field').value = typeOf[g.label] || 'animal';
   [...$('guesses').children].forEach(b => b.classList.toggle('on', b.dataset.label === g.label));
 }
-// ---------- Toast Notifications & Photo Storage Handlers (Options A & C) ----------
-function showToast(message) {
+
+// ---------- Fullscreen Photo Lightbox ----------
+function openPhotoLightbox(photoUrl, title = 'Specimen Photo') {
+  const modal = $('lightbox-modal');
+  const img = $('lightbox-img');
+  const cap = $('lightbox-caption');
+  if (!modal || !img) return;
+  img.src = photoUrl;
+  if (cap) cap.textContent = title;
+  modal.classList.remove('hidden');
+}
+
+function closePhotoLightbox() {
+  const modal = $('lightbox-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+if ($('lightbox-close-btn')) {
+  $('lightbox-close-btn').onclick = closePhotoLightbox;
+}
+if ($('lightbox-modal')) {
+  $('lightbox-modal').onclick = e => {
+    if (e.target === $('lightbox-modal') || e.target.closest('.lightbox-close')) {
+      closePhotoLightbox();
+    }
+  };
+}
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closePhotoLightbox();
+    show('stamp-modal', false);
+    show('detail-modal', false);
+    show('map-consent-modal', false);
+    show('maps-manager-modal', false);
+    show('postcard-modal', false);
+  }
+});
+
+// ---------- Toast Notifications & Photo Storage Handlers ----------
+function showToast(message, type = 'info') {
   let toast = $('wildtrail-toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -1151,9 +1231,10 @@ function showToast(message) {
     toast.className = 'uncharted-toast';
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span>${message}</span>`;
+  const icon = type === 'success' ? '✓' : (type === 'error' ? '⚠️' : 'ℹ');
+  toast.innerHTML = `<span style="display:inline-flex;align-items:center;gap:7px;"><strong>${icon}</strong> ${message}</span>`;
   toast.classList.remove('hidden');
-  if ('vibrate' in navigator) navigator.vibrate(30);
+  if ('vibrate' in navigator) navigator.vibrate(20);
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => {
     toast.classList.add('hidden');
@@ -1357,6 +1438,11 @@ async function renderCollection() {
     img.src = f.photo;
     img.alt = f.name;
     img.loading = 'lazy';
+    img.title = 'Tap to view full resolution photo';
+    img.onclick = e => {
+      e.stopPropagation();
+      openPhotoLightbox(f.photo, f.name);
+    };
     frame.appendChild(img);
 
     // Bottom Species Name (Shows species name instead of INDIA · WT)
@@ -1394,6 +1480,10 @@ function open3DStampCard(find) {
 
   // Front Stamp Face (Photo, Dynamic XP, Species Name at bottom)
   $('stamp-front-img').src = find.photo;
+  $('stamp-front-img').onclick = e => {
+    e.stopPropagation();
+    openPhotoLightbox(find.photo, find.name);
+  };
   $('stamp-front-type').textContent = ICONS[find.type] || '🌿';
   if ($('stamp-front-points')) $('stamp-front-points').textContent = `★ ${pts} XP`;
   if ($('stamp-front-name')) $('stamp-front-name').textContent = (find.name || 'WILD SPECIMEN').toUpperCase();
@@ -2055,7 +2145,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   if (mapInstance) {
     g.clearRect(0, 0, cv.width, cv.height);
   } else {
-    g.fillStyle = '#061009';
+    g.fillStyle = '#f4f4f0';
     g.fillRect(0, 0, cv.width, cv.height);
   }
 
@@ -2075,10 +2165,10 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   const maxMy = Math.ceil((cy + panY) / (gridStepMeters * px)) * gridStepMeters;
 
   g.save();
-  g.strokeStyle = 'rgba(52, 211, 153, 0.08)';
+  g.strokeStyle = 'rgba(0, 0, 0, 0.06)';
   g.lineWidth = 1;
   g.font = '9px monospace';
-  g.fillStyle = 'rgba(52, 211, 153, 0.4)';
+  g.fillStyle = 'rgba(17, 24, 39, 0.45)';
 
   for (let mx = minMx; mx <= maxMx; mx += gridStepMeters) {
     const sx = cx + panX + mx * px;
@@ -2107,7 +2197,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
 
   // 2. Topographical elevation contour rings
   g.save();
-  g.strokeStyle = 'rgba(52, 211, 153, 0.06)';
+  g.strokeStyle = 'rgba(21, 128, 61, 0.12)';
   g.setLineDash([5, 6]);
   g.lineWidth = 1;
   [50, 120, 220, 360, 520].forEach(r => {
@@ -2126,24 +2216,24 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
     const s = toScreen({ x: i * CELL, y: j * CELL });
     const sz = CELL * px;
     if (unchartedCells.has(key)) {
-      g.fillStyle = 'rgba(245, 158, 11, 0.28)';
+      g.fillStyle = 'rgba(217, 119, 6, 0.22)';
       g.fillRect(s.x, s.y - sz, sz, sz);
-      g.strokeStyle = '#f59e0b';
+      g.strokeStyle = '#d97706';
       g.lineWidth = 1.5;
       g.strokeRect(s.x, s.y - sz, sz, sz);
     } else {
-      g.fillStyle = mapInstance ? 'rgba(16, 185, 129, 0.22)' : 'rgba(17, 74, 39, 0.75)';
+      g.fillStyle = mapInstance ? 'rgba(21, 128, 61, 0.22)' : 'rgba(21, 128, 61, 0.14)';
       g.fillRect(s.x, s.y - sz, sz, sz);
-      g.strokeStyle = 'rgba(52, 211, 153, 0.16)';
-      g.lineWidth = 0.5;
+      g.strokeStyle = 'rgba(21, 128, 61, 0.22)';
+      g.lineWidth = 0.75;
       g.strokeRect(s.x, s.y - sz, sz, sz);
     }
   });
 
-  // 4. GPS Trail with neon dual-stroke
+  // 4. GPS Trail with clean dual-stroke
   if (track.length > 1) {
     g.save();
-    g.strokeStyle = 'rgba(16, 185, 129, 0.35)';
+    g.strokeStyle = 'rgba(21, 128, 61, 0.25)';
     g.lineWidth = 5;
     g.lineCap = 'round';
     g.lineJoin = 'round';
@@ -2154,7 +2244,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
     });
     g.stroke();
 
-    g.strokeStyle = '#34d399';
+    g.strokeStyle = '#15803d';
     g.lineWidth = 2.5;
     g.stroke();
     g.restore();
@@ -2168,13 +2258,13 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
 
     g.save();
     // Drop shadow
-    g.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    g.fillStyle = 'rgba(0, 0, 0, 0.15)';
     g.beginPath();
     g.ellipse(s.x, s.y + 12, 8, 3.5, 0, 0, Math.PI * 2);
     g.fill();
 
     // Pin bottom tip
-    g.fillStyle = '#f59e0b';
+    g.fillStyle = '#15803d';
     g.beginPath();
     g.moveTo(s.x - 5, s.y + 5);
     g.lineTo(s.x + 5, s.y + 5);
@@ -2183,8 +2273,8 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
     g.fill();
 
     // Outer circle
-    g.fillStyle = '#0a1d13';
-    g.strokeStyle = '#fbbf24';
+    g.fillStyle = '#ffffff';
+    g.strokeStyle = '#15803d';
     g.lineWidth = 2;
     g.beginPath();
     g.arc(s.x, s.y, 11, 0, Math.PI * 2);
@@ -2219,9 +2309,9 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
     playerScreenPos.x, playerScreenPos.y, 4,
     playerScreenPos.x, playerScreenPos.y, coneRadius
   );
-  coneGrad.addColorStop(0, 'rgba(52, 211, 153, 0.4)');
-  coneGrad.addColorStop(0.5, 'rgba(52, 211, 153, 0.14)');
-  coneGrad.addColorStop(1, 'rgba(52, 211, 153, 0.0)');
+  coneGrad.addColorStop(0, 'rgba(21, 128, 61, 0.35)');
+  coneGrad.addColorStop(0.5, 'rgba(21, 128, 61, 0.12)');
+  coneGrad.addColorStop(1, 'rgba(21, 128, 61, 0.0)');
 
   g.save();
   g.fillStyle = coneGrad;
@@ -2238,7 +2328,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   const pulseAlpha = Math.max(0, 1 - pulseTime) * 0.7;
 
   g.save();
-  g.strokeStyle = `rgba(52, 211, 153, ${pulseAlpha})`;
+  g.strokeStyle = `rgba(21, 128, 61, ${pulseAlpha})`;
   g.lineWidth = 2;
   g.beginPath();
   g.arc(playerScreenPos.x, playerScreenPos.y, pulseR, 0, Math.PI * 2);
@@ -2247,18 +2337,18 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
   const pulse2Time = ((Date.now() + 1000) % 2000) / 2000;
   const pulse2R = 8 + pulse2Time * 22;
   const pulse2Alpha = Math.max(0, 1 - pulse2Time) * 0.5;
-  g.strokeStyle = `rgba(245, 158, 11, ${pulse2Alpha})`;
+  g.strokeStyle = `rgba(217, 119, 6, ${pulse2Alpha})`;
   g.beginPath();
   g.arc(playerScreenPos.x, playerScreenPos.y, pulse2R, 0, Math.PI * 2);
   g.stroke();
 
   // Player Core Avatar
-  g.fillStyle = 'rgba(16, 185, 129, 0.35)';
+  g.fillStyle = 'rgba(21, 128, 61, 0.25)';
   g.beginPath();
   g.arc(playerScreenPos.x, playerScreenPos.y, 11, 0, Math.PI * 2);
   g.fill();
 
-  g.fillStyle = '#10b981';
+  g.fillStyle = '#15803d';
   g.strokeStyle = '#ffffff';
   g.lineWidth = 2.5;
   g.beginPath();
@@ -2268,7 +2358,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
 
   const tipX = playerScreenPos.x + Math.cos(headingAngle) * 11;
   const tipY = playerScreenPos.y + Math.sin(headingAngle) * 11;
-  g.fillStyle = '#fbbf24';
+  g.fillStyle = '#15803d';
   g.beginPath();
   g.arc(tipX, tipY, 2.5, 0, Math.PI * 2);
   g.fill();
@@ -2276,7 +2366,7 @@ function drawMapCanvas(finds = cachedFinds, cells = cachedCells) {
 
   // If no track yet, show helpful hint
   if (!track.length) {
-    g.fillStyle = '#92a89a';
+    g.fillStyle = '#6b7280';
     g.font = '13px system-ui';
     g.textAlign = 'center';
     g.fillText('Start tracking to uncover the territory', playerScreenPos.x, playerScreenPos.y + 40);
@@ -2726,12 +2816,12 @@ async function initMapLibreWithRegion(region) {
       }
     },
     layers: [
-      { id: 'bg', type: 'background', paint: { 'background-color': '#061009' } },
-      { id: 'water', type: 'fill', source: 'protomaps', 'source-layer': 'water', paint: { 'fill-color': '#08211b' } },
-      { id: 'landuse', type: 'fill', source: 'protomaps', 'source-layer': 'landuse', paint: { 'fill-color': '#0a1d13' } },
-      { id: 'roads-casing', type: 'line', source: 'protomaps', 'source-layer': 'roads', paint: { 'line-color': '#030805', 'line-width': 2.5 } },
-      { id: 'roads', type: 'line', source: 'protomaps', 'source-layer': 'roads', paint: { 'line-color': '#163824', 'line-width': 1.5 } },
-      { id: 'buildings', type: 'fill', source: 'protomaps', 'source-layer': 'buildings', paint: { 'fill-color': '#0d2115', 'fill-opacity': 0.6 } }
+      { id: 'bg', type: 'background', paint: { 'background-color': '#f4f4f0' } },
+      { id: 'water', type: 'fill', source: 'protomaps', 'source-layer': 'water', paint: { 'fill-color': '#dbeafe' } },
+      { id: 'landuse', type: 'fill', source: 'protomaps', 'source-layer': 'landuse', paint: { 'fill-color': '#e2e8f0' } },
+      { id: 'roads-casing', type: 'line', source: 'protomaps', 'source-layer': 'roads', paint: { 'line-color': '#cbd5e1', 'line-width': 2.5 } },
+      { id: 'roads', type: 'line', source: 'protomaps', 'source-layer': 'roads', paint: { 'line-color': '#ffffff', 'line-width': 1.5 } },
+      { id: 'buildings', type: 'fill', source: 'protomaps', 'source-layer': 'buildings', paint: { 'fill-color': '#e2e8f0', 'fill-opacity': 0.6 } }
     ]
   };
 
