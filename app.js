@@ -332,11 +332,42 @@ function setCameraZoom(z) {
   }
 }
 
+function updateCameraViewportAspect() {
+  const v = $('video');
+  const camBox = document.querySelector('.camera');
+  if (!v || !camBox) return;
+  if (v.videoWidth && v.videoHeight) {
+    const aspect = v.videoWidth / v.videoHeight;
+    camBox.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
+    if (aspect < 1) {
+      // Portrait stream (e.g. 9:16 or 3:4): constrain width so it hugs the vertical video neatly
+      camBox.style.maxWidth = `min(100%, calc(72vh * ${aspect}))`;
+    } else {
+      // Landscape or square stream: fill column width
+      camBox.style.maxWidth = '100%';
+    }
+  }
+}
+
+function resetCameraViewportAspect() {
+  const camBox = document.querySelector('.camera');
+  if (camBox) {
+    camBox.style.aspectRatio = '';
+    camBox.style.maxWidth = '';
+  }
+}
+
 function initCameraControls() {
   const v = $('video');
   const camBox = document.querySelector('.camera');
   if (!v || v._cameraControlsInit) return;
   v._cameraControlsInit = true;
+
+  // Track video aspect ratio dynamically to ensure 100% full uncropped field of view
+  v.addEventListener('loadedmetadata', updateCameraViewportAspect);
+  v.addEventListener('resize', updateCameraViewportAspect);
+  window.addEventListener('resize', updateCameraViewportAspect);
+  window.addEventListener('orientationchange', updateCameraViewportAspect);
 
   // 1. Botanical Emerald & Gold Tap-to-Focus Reticle
   v.addEventListener('click', async e => {
@@ -345,9 +376,9 @@ function initCameraControls() {
     if (Date.now() - lastPinchTime < 350 || isSlidingZoom) return;
     if (e.target.closest('#camera-zoom-container') || e.target.closest('.viewfinder-top-bar')) return;
 
-    const rect = v.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const camRect = camBox ? camBox.getBoundingClientRect() : v.getBoundingClientRect();
+    const x = e.clientX - camRect.left;
+    const y = e.clientY - camRect.top;
 
     const reticle = $('focus-reticle');
     if (reticle) {
@@ -362,8 +393,9 @@ function initCameraControls() {
           const caps = currentVideoTrack.getCapabilities ? currentVideoTrack.getCapabilities() : {};
           const advanced = [];
 
-          const normX = Math.max(0, Math.min(1, x / rect.width));
-          const normY = Math.max(0, Math.min(1, y / rect.height));
+          const vRect = v.getBoundingClientRect();
+          const normX = Math.max(0, Math.min(1, (e.clientX - vRect.left) / vRect.width));
+          const normY = Math.max(0, Math.min(1, (e.clientY - vRect.top) / vRect.height));
 
           if (caps.pointsOfInterest) {
             advanced.push({ pointsOfInterest: [{ x: normX, y: normY }] });
@@ -749,7 +781,7 @@ async function switchCamera() {
     let newStream = null;
     const reqConstraints = {
       width: { ideal: 1920 },
-      height: { ideal: 1080 }
+      height: { ideal: 1440 }
     };
 
     if (targetDeviceId) {
@@ -790,6 +822,7 @@ async function switchCamera() {
 
     v.srcObject = stream;
     await v.play();
+    updateCameraViewportAspect();
 
     // 5. Apply continuous autofocus
     await applyContinuousAutofocus(newTrack);
@@ -855,7 +888,7 @@ async function startCamera(facingMode = currentFacingMode, preferredDeviceId = n
     let newStream = null;
     const baseConstraints = {
       width: { ideal: 1920 },
-      height: { ideal: 1080 }
+      height: { ideal: 1440 }
     };
 
     if (preferredDeviceId) {
@@ -896,6 +929,7 @@ async function startCamera(facingMode = currentFacingMode, preferredDeviceId = n
     const v = $('video');
     v.srcObject = stream;
     await v.play();
+    updateCameraViewportAspect();
 
     show('cam-msg', false);
     $('snap-btn').disabled = false;
@@ -984,6 +1018,7 @@ function stopCamera() {
   }
   const reticle = $('focus-reticle');
   if (reticle) reticle.classList.add('hidden');
+  resetCameraViewportAspect();
 }
 
 if (navigator.mediaDevices?.addEventListener) {
@@ -1080,49 +1115,33 @@ $('snap-btn').onclick = async () => {
   playShutterSound();
   if ('vibrate' in navigator) navigator.vibrate([25, 20, 35]);
 
-  // 3. High-Resolution Sensor Capture
-  let fullPhotoUrl = null;
-
-  if ('ImageCapture' in window && currentVideoTrack && currentFacingMode !== 'user') {
-    try {
-      const capture = new ImageCapture(currentVideoTrack);
-      const blob = await capture.takePhoto();
-      fullPhotoUrl = await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = evt => resolve(evt.target.result);
-        reader.readAsDataURL(blob);
-      });
-    } catch (icErr) {
-      // Graceful fallback to high-res canvas draw
-    }
+  // 3. High-Fidelity Capture from Complete Video Frame (100% exact framing match with live preview)
+  const c = document.createElement('canvas');
+  let w = v.videoWidth;
+  let h = v.videoHeight;
+  const MAX_DIM = 3840; // 4K native maximum fidelity without downsampling
+  if (w > MAX_DIM || h > MAX_DIM) {
+    const scale = Math.min(MAX_DIM / w, MAX_DIM / h);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
   }
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
-  if (!fullPhotoUrl) {
-    const c = document.createElement('canvas');
-    let w = v.videoWidth;
-    let h = v.videoHeight;
-    const MAX_DIM = 2560; // 2.5K high quality retina
-    if (w > MAX_DIM || h > MAX_DIM) {
-      const scale = Math.min(MAX_DIM / w, MAX_DIM / h);
-      w = Math.round(w * scale);
-      h = Math.round(h * scale);
-    }
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext('2d');
-
-    if (currentCameraZoom !== 1.0 && v.style.transform && v.style.transform !== 'none') {
-      ctx.save();
-      ctx.translate(c.width / 2, c.height / 2);
-      ctx.scale(currentCameraZoom, currentCameraZoom);
-      ctx.translate(-c.width / 2, -c.height / 2);
-      ctx.drawImage(v, 0, 0, c.width, c.height);
-      ctx.restore();
-    } else {
-      ctx.drawImage(v, 0, 0, c.width, c.height);
-    }
-    fullPhotoUrl = c.toDataURL('image/jpeg', 0.92);
+  if (currentCameraZoom !== 1.0 && v.style.transform && v.style.transform !== 'none') {
+    ctx.save();
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.scale(currentCameraZoom, currentCameraZoom);
+    ctx.translate(-c.width / 2, -c.height / 2);
+    ctx.drawImage(v, 0, 0, c.width, c.height);
+    ctx.restore();
+  } else {
+    ctx.drawImage(v, 0, 0, c.width, c.height);
   }
+  const fullPhotoUrl = c.toDataURL('image/jpeg', 0.94);
 
   // 4. Lightweight 256px Thumbnail strictly for on-device CLIP inference
   const thumbC = document.createElement('canvas');
