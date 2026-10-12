@@ -4,7 +4,7 @@
 
 ### Step outside. Discover more. Keep every wild encounter.
 
-**A privacy-first nature exploration PWA with on-device open AI and offline vector maps.**
+**A privacy-first nature exploration PWA with on-device open AI and offline vector maps.*
 
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-wildtrail--chi.vercel.app-00C896?style=for-the-badge&logoColor=white)](https://wildtrail-chi.vercel.app)
 [![Hacktoberfest 2026](https://img.shields.io/badge/Hacktoberfest-2026_Week_1:_Touch_Grass-FF7518?style=for-the-badge&logo=hacktoberfest&logoColor=white)](https://dev.to/events/challenges/hacktoberfest-week1-2026-10-05)
