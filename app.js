@@ -25,6 +25,8 @@ const SPECIES = [
   ['ant', 'insect'], ['beetle', 'insect'], ['ladybug', 'insect'], ['grasshopper', 'insect'],
   ['praying mantis', 'insect'], ['moth', 'insect'], ['caterpillar', 'insect'],
   ['cricket insect', 'insect'], ['house fly', 'insect'], ['spider', 'insect'],
+  ['monarch butterfly', 'insect'], ['swallowtail butterfly', 'insect'],
+  ['painted lady butterfly', 'insect'], ['common blue butterfly', 'insect'],
   // flowers and plants
   ['rose', 'flower'], ['hibiscus', 'flower'], ['marigold', 'flower'], ['jasmine', 'flower'],
   ['lotus', 'flower'], ['sunflower', 'flower'], ['bougainvillea', 'flower'],
@@ -32,7 +34,8 @@ const SPECIES = [
   ['lily', 'flower'], ['dandelion', 'flower'], ['lavender', 'flower'], ['cosmos flower', 'flower'],
   ['gulmohar flower', 'flower'], ['morning glory', 'flower'], ['zinnia', 'flower'],
   ['lantana', 'flower'], ['leaf', 'flower'], ['mushroom', 'flower'],
-  ['euphorbia milii', 'flower'], ['ghost orchid', 'flower'],
+  ['euphorbia milii', 'flower'], ['ghost orchid', 'flower'], ['common dandelion', 'flower'],
+  ['chicory flower', 'flower'], ['common poppy', 'flower'], ['wild sunflower', 'flower'],
 ];
 // Anything that is not wildlife or a plant, so the model can say "nothing found".
 const NONE_LABEL = 'a person, a room, a building or an everyday object';
