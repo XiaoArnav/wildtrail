@@ -20,6 +20,14 @@ const SPECIES = [
   ['mongoose', 'animal'], ['garden lizard', 'animal'], ['gecko', 'animal'], ['frog', 'animal'],
   ['snake', 'animal'], ['tortoise', 'animal'], ['fish', 'animal'], ['rabbit', 'animal'],
   ['snail', 'animal'], ['bat', 'animal'],
+  // more animals: names CLIP already knows, visually distinct from the labels above
+  ['red fox', 'animal'], ['grey wolf', 'animal'], ['cheetah', 'animal'], ['spotted hyena', 'animal'],
+  ['zebra', 'animal'], ['giraffe', 'animal'], ['rhinoceros', 'animal'], ['hippopotamus', 'animal'],
+  ['camel', 'animal'], ['wild boar', 'animal'], ['nilgai antelope', 'animal'], ['blackbuck antelope', 'animal'],
+  ['donkey', 'animal'], ['sheep', 'animal'], ['porcupine', 'animal'], ['hedgehog', 'animal'],
+  ['river otter', 'animal'], ['raccoon', 'animal'], ['crocodile', 'animal'], ['chameleon', 'animal'],
+  ['monitor lizard', 'animal'], ['cobra', 'animal'], ['giant panda', 'animal'], ['red panda', 'animal'],
+  ['kangaroo', 'animal'], ['koala', 'animal'], ['sloth', 'animal'],
   // insects and bugs
   ['butterfly', 'insect'], ['honey bee', 'insect'], ['wasp', 'insect'], ['dragonfly', 'insect'],
   ['ant', 'insect'], ['beetle', 'insect'], ['ladybug', 'insect'], ['grasshopper', 'insect'],
